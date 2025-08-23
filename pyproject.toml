@@ -1,0 +1,104 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "structures"
+version = "0.1.0"
+description = "A Python package for data structures (project scaffold)."
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [
+  { name = "Your Name", email = "you@example.com" }
+]
+license = { text = "UNLICENSED" }
+keywords = ["structures", "scaffold"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "License :: Other/Proprietary License",
+  "Operating System :: OS Independent",
+]
+
+# Runtime deps (add as needed)
+dependencies = []
+
+[project.optional-dependencies]
+# Development tools
+dev = [
+  "pytest>=7",
+  "pytest-cov>=4",
+  "black>=24.0",
+  "ruff>=0.5",
+  "mypy>=1.8",
+  "pre-commit>=3.6",
+]
+# Documentation stack
+docs = [
+  "mkdocs>=1.6",
+  "mkdocs-material>=9.5",
+  "mkdocstrings[python]>=0.25",
+  "mkdocs-gen-files>=0.5",
+  "mkdocs-section-index>=0.3",
+  "mkdocs-literate-nav>=0.6",
+  "griffe>=0.44",
+]
+
+[project.urls]
+Homepage = "https://example.com"
+Repository = "https://github.com/your-org/structures"
+
+[project.scripts]
+structures = "structures.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.black]
+line-length = 100
+target-version = ["py39", "py310", "py311", "py312"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "PL"]
+ignore = ["E501"]  # Let black handle line length
+
+[tool.ruff.lint.isort]
+known-first-party = ["structures"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["PLR2004"]
+
+[tool.mypy]
+python_version = "3.9"
+strict = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_return_any = true
+warn_unused_ignores = true
+show_error_codes = true
+pretty = true
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q"
+filterwarnings = [
+  "error::DeprecationWarning",
+]
+testpaths = [
+  "tests",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["structures"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true

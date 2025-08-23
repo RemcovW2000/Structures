@@ -1,0 +1,56 @@
+site_name: Structures
+site_description: Auto-generated documentation from docstrings
+site_url: https://your-org.github.io/structures/
+repo_url: https://github.com/your-org/structures
+repo_name: your-org/structures
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.tracking
+    - content.code.copy
+  palette:
+    - scheme: default
+      primary: blue
+      accent: light blue
+
+nav:
+  - Home: index.md
+  - Usage: usage.md
+  - Reference:
+      - Package: reference.md
+
+plugins:
+  - search
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            docstring_options:
+              ignore_init_summary: true
+            show_source: true
+            show_root_heading: true
+            separate_signature: true
+            members_order: source
+
+markdown_extensions:
+  - admonition
+  - toc:
+      permalink: true
+  - tables
+  - footnotes
+  - def_list
+  - attr_list
+  - md_in_html
+
+watch:
+  - src/structures
+  - docs
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/your-org/structures

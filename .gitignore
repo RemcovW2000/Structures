@@ -1,0 +1,53 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+dist/
+wheelhouse/
+.eggs/
+*.egg-info/
+.installed.cfg
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Unit test / coverage reports
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.pytest_cache/
+
+# Type checker
+.mypy_cache/
+.pyre/
+.pytype/
+
+# Lint
+.ruff_cache/
+
+# MkDocs
+site/
+
+# IDEs and editors
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Logs
+*.log
