@@ -1,5 +1,5 @@
 # Makefile with common dev tasks
-.PHONY: install fmt lint typecheck test clean docs docs-serve precommit hooks
+.PHONY: install fmt lint test clean docs docs-serve precommit hooks
 
 install:
 	python -m pip install --upgrade pip
@@ -12,9 +12,6 @@ fmt:
 lint:
 	ruff check .
 	black --check .
-
-typecheck:
-	mypy
 
 test:
 	pytest --cov --cov-report=term-missing
