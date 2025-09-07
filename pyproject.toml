@@ -47,9 +47,6 @@ docs = [
 Homepage = "https://example.com"
 Repository = "https://github.com/your-org/structures"
 
-[project.scripts]
-structures = "structures.cli:main"
-
 [tool.setuptools]
 package-dir = {"" = "src"}
 include-package-data = true
