@@ -50,7 +50,7 @@ class StructuralEntity(ABC):
 
         :return: None
         """
-        pass
+        raise NotImplementedError("Subclasses must implement this method")
 
     def set_failure_indicator(self, failure_mode: failure_mode_options, failure_indicator: float):
         # failure indicator is initialised as an empty dictionary
