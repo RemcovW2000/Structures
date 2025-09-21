@@ -58,19 +58,18 @@ class Laminate(StructuralEntity):
         # Per lamina we calculate the three matrices
         for lamina in self.laminas:
             # First we recalculate the Q and S matrix of the lamina:
-            lamina.calculate_QS()
 
             # Calculate the difference (Z_k - Z_k-1)
             delta_Z = lamina.z1 - lamina.z0
             # Update A_ij by adding the product of Q(k) and the difference in Z
-            A_matrix += lamina.Q * delta_Z
+            A_matrix += lamina.Qbar * delta_Z
 
             # Now the same for b and d matrices:
             delta_Z_squared = lamina.z1**2 - lamina.z0**2
-            B_matrix += 1 / 2 * (lamina.Q * delta_Z_squared)
+            B_matrix += 1 / 2 * (lamina.Qbar * delta_Z_squared)
 
             delta_Z_cubed = lamina.z1**3 - lamina.z0**3
-            D_matrix += 1 / 3 * (lamina.Q * delta_Z_cubed)
+            D_matrix += 1 / 3 * (lamina.Qbar * delta_Z_cubed)
 
         # assign the matrices as attributes individually, this can be useful:
         # (but should be removed if this code should be used for high intensity
@@ -380,14 +379,14 @@ class Laminate(StructuralEntity):
             z0 = lamina.z0 + corethickness / 2 + self.h / 2
             delta_Z = z1 - z0
             # Update A_ij by adding the product of Q(k) and the difference in Z
-            A_matrix += lamina.Q * delta_Z
+            A_matrix += lamina.Qbar * delta_Z
 
             # Now the same for b and d matrices:
             delta_Z_squared = z1**2 - z0**2
-            B_matrix += 1 / 2 * (lamina.Q * delta_Z_squared)
+            B_matrix += 1 / 2 * (lamina.Qbar * delta_Z_squared)
 
             delta_Z_cubed = z1**3 - z0**3
-            D_matrix += 1 / 3 * (lamina.Q * delta_Z_cubed)
+            D_matrix += 1 / 3 * (lamina.Qbar * delta_Z_cubed)
 
         # Save ABD matrix
         CoreABD = np.block([[A_matrix, B_matrix], [B_matrix, D_matrix]])
