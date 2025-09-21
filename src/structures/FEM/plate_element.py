@@ -159,31 +159,134 @@ def plate4_mindlin_stiffness(
     return Ke, R, origin
 
 
+class Vector:
+    def __init__(self, x: float, y: float, z: float):
+        self.x = x
+        self.y = y
+        self.z = z
+
+
+class Orientation:
+    def __init__(self, ex: Vector, ey: Vector, ez: Vector):
+        self.ex = ex
+        self.ey = ey
+        self.ez = ez
+
+    def is_orthogonal(self) -> bool:
+        # Check if the vectors are orthogonal and normalized
+        def dot(v1: Vector, v2: Vector) -> float:
+            return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z
+
+        def norm(v: Vector) -> float:
+            return (v.x**2 + v.y**2 + v.z**2) ** 0.5
+
+        return (
+            abs(dot(self.ex, self.ey)) < 1e-6
+            and abs(dot(self.ey, self.ez)) < 1e-6
+            and abs(dot(self.ez, self.ex)) < 1e-6
+            and abs(norm(self.ex) - 1) < 1e-6
+            and abs(norm(self.ey) - 1) < 1e-6
+            and abs(norm(self.ez) - 1) < 1e-6
+        )
+
+
+class Node:
+    def __init__(self, id: int, x: float, y: float, z: float):
+        self.id = id
+        self.x = x
+        self.y = y
+        self.z = z
+
+
+class Element:
+    def __init__(self, id: int, nodes: list[Node], orientation: Orientation):
+        self.id = id
+        self.nodes = nodes
+        self.orientation = orientation
+
+
+class CompositeElement(Element):
+    def __init__(
+        self,
+        id: int,
+        nodes: list[Node],
+        orientation: Orientation,
+        ABD: np.ndarray,
+        As: Optional[np.ndarray] = None,
+    ):
+        super().__init__(id, nodes, orientation)
+        self.ABD = ABD
+        self.As = As
+        self.Ke_local, self.R, self.origin = plate4_mindlin_stiffness(
+            ABD, self.get_node_coords(), As
+        )
+
+
 if __name__ == "__main__":
-    # Simple usage example: build a laminate, define a square element, and compute Ke
+    # Two-element assembly example: build laminate, make 2 quads side-by-side, assemble global K
     from structures.panel.utils import laminate_builder
 
     # Build a symmetric quasi-isotropic laminate (example material set in data)
     laminate = laminate_builder([0, 90, 45, -45], True, True, 1, type="T700")
     ABD = laminate.ABD_matrix
 
-    # Define node coordinates for a unit square in the global XY-plane (z=0)
-    nodes_xyz = np.array(
+    # Optional shear stiffness (commented out for simplicity)
+    # kappa = 5.0 / 6.0
+    # h = laminate.h
+    # G = laminate.Gxy  # rough approx for Gxz, Gyz if needed
+    # As = kappa * h * np.diag([G, G])
+    As = None
+
+    # Define 6 unique global nodes for two unit quads in XY-plane (z=0)
+    # Node layout (indices in parentheses):
+    # (0)---(1)---(2)
+    #  |  e0 | e1  |
+    # (3)---(4)---(5)
+    nodes = np.array(
         [
-            [0.0, 0.0, 0.0],  # Node 1
-            [1.0, 0.0, 0.0],  # Node 2
-            [1.0, 1.0, 0.0],  # Node 3
-            [0.0, 1.0, 0.0],  # Node 4
+            [0.0, 0.0, 0.0],  # 0
+            [1.0, 0.0, 0.0],  # 1
+            [2.0, 0.0, 0.0],  # 2
+            [0.0, 1.0, 0.0],  # 3
+            [1.0, 1.0, 0.0],  # 4
+            [2.0, 1.0, 0.0],  # 5
         ],
         dtype=ABD.dtype,
     )
 
-    # For thin plates or when transverse shear properties are unknown, omit As
-    Ke, R, origin = plate4_mindlin_stiffness(ABD, nodes_xyz, As=None)
+    # Element connectivities (counter-clockwise):
+    # e0: (0,1,4,3); e1: (1,2,5,4)
+    elements = [
+        (0, 1, 4, 3),
+        (1, 2, 5, 4),
+    ]
+
+    dof_per_node = 5
+    ndof = nodes.shape[0] * dof_per_node
+    K_global = np.zeros((ndof, ndof), dtype=ABD.dtype)
+
+    def dof_indices(conn):
+        idx = []
+        for n in conn:
+            base = n * dof_per_node
+            idx.extend([base + 0, base + 1, base + 2, base + 3, base + 4])
+        return np.array(idx, dtype=int)
+
+    # Assemble
+    first_R = None
+    first_origin = None
+    for conn in elements:
+        nodes_xyz = nodes[list(conn)]
+        Ke_local, R, origin = plate4_mindlin_stiffness(ABD, nodes_xyz, As=As)
+        gdofs = dof_indices(conn)
+        # Elements lie in XY plane -> local ~ global, assemble directly
+        K_global[np.ix_(gdofs, gdofs)] += Ke_local
+        if first_R is None:
+            first_R, first_origin = R, origin
 
     # Print a brief summary
     np.set_printoptions(precision=3, suppress=True)
-    print("Element stiffness Ke shape:", Ke.shape)
-    print("Centroid (global):", origin)
-    print("Local axes (columns of R):\n", R)
-    print("Ke top-left 6x6 block:\n", Ke[:6, :6])
+    print("Global stiffness K shape:", K_global.shape)
+    print("First element centroid (global):", first_origin)
+    print("First element local axes (columns of R):\n", first_R)
+    print("K_global top-left 12x12 block:\n", K_global[:12, :12])
