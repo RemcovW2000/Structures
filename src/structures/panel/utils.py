@@ -2,6 +2,7 @@ import copy
 
 from structures import Lamina
 from structures.panel.laminate import Laminate
+from structures.panel.data import material_properties as mp
 
 
 def laminate_builder(angleslist, symmetry, copycenter, multiplicity, type=None):
@@ -16,9 +17,9 @@ def laminate_builder(angleslist, symmetry, copycenter, multiplicity, type=None):
 
     # Define standard lamina:
     if type:
-        lamina = Lamina(MP.t, 45, MP.elastic_properties, MP.failure_properties, MP.rho)
+        lamina = Lamina(mp.t, 45, mp.elastic_properties, mp.failure_properties, mp.rho)
     else:
-        props = MP.CF[type]
+        props = mp.CF[type]
         lamina = Lamina(
             props["t"],
             0,
@@ -32,7 +33,7 @@ def laminate_builder(angleslist, symmetry, copycenter, multiplicity, type=None):
     for angle in angleslist:
         newlamina = copy.deepcopy(lamina)
         newlamina.theta_ = angle
-        newlamina.calculate_QS()
+        newlamina._compute_q_s()
         laminas.append(newlamina)
 
     laminate = Laminate(laminas)
