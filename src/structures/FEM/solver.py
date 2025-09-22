@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import enum
+
 import numpy as np
 from dataclasses import dataclass
 from typing import Optional, Iterable
@@ -7,13 +9,25 @@ from typing import Optional, Iterable
 
 # Simple node/element-based FEM solver for plate/shell elements -----------------
 
-DofName = str  # one of: "u", "v", "w", "rx", "ry"
+
+class DofName(enum.Enum):
+    U = ("u", 0)
+    V = ("v", 1)
+    W = ("w", 2)
+    RX = ("rx", 3)
+    RY = ("ry", 4)
+
+    def __new__(cls, description, index):
+        obj = object.__new__(cls)
+        obj.index = index
+        obj.description = description
+        return obj
 
 
 @dataclass(frozen=True)
 class Dirichlet:
     node_id: int
-    dof: DofName | int
+    dof: DofName
     value: float = 0.0
 
 
@@ -50,16 +64,10 @@ class FEMSolver:
         self._elements: list[tuple[int, ...]] = []  # store element connectivities
 
     # --- DOF mapping -----------------------------------------------------
-    @staticmethod
-    def _dof_name_to_index(name: DofName) -> int:
-        mapping = {"u": 0, "v": 1, "w": 2, "rx": 3, "ry": 4}
-        if name not in mapping:
-            raise ValueError(f"Unknown DOF name '{name}'. Use one of {list(mapping.keys())}.")
-        return mapping[name]
 
-    def dof_index(self, node_id: int, dof: DofName | int) -> int:
-        j = dof if isinstance(dof, int) else self._dof_name_to_index(dof)
-        return node_id * self.dpn + j
+    def dof_index(self, node_id: int, dof: DofName) -> int:
+        index = dof.index
+        return node_id * self.dpn + dof.index
 
     def element_dof_indices(self, connectivity: Iterable[int]) -> np.ndarray:
         idx: list[int] = []
@@ -84,15 +92,15 @@ class FEMSolver:
         self.add_element(Ke, connectivity=conn)
 
     # --- Loads & BCs -----------------------------------------------------
-    def load(self, node_id: int, dof: DofName | int, value: float) -> None:
+    def load(self, node_id: int, dof: DofName, value: float) -> None:
         self.f[self.dof_index(node_id, dof)] += value
 
-    def fix(self, node_id: int, dof: DofName | int, value: float = 0.0) -> None:
+    def fix(self, node_id: int, dof: DofName, value: float = 0.0) -> None:
         self._dirichlet.append(Dirichlet(node_id, dof, value))
 
     def fix_all_at_node(self, node_id: int, value: float = 0.0) -> None:
-        for j in range(self.dpn):
-            self.fix(node_id, j, value)
+        for dof in DofName:
+            self.fix(node_id, dof, value)
 
     # --- Solve -----------------------------------------------------------
     def solve(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -126,14 +134,14 @@ class FEMSolver:
         return u, self.K, self.f
 
     # --- Post-processing ------------------------------------------------
-    def get_component(self, dof: DofName | int) -> np.ndarray:
+    def get_component(self, dof: DofName) -> np.ndarray:
         """Return a nodal array of a displacement/rotation component.
 
         dof: one of {"u","v","w","rx","ry"} or 0..4
         """
         if self.u is None:
             raise RuntimeError("No solution available; call solve() first.")
-        j = dof if isinstance(dof, int) else self._dof_name_to_index(dof)
+        j = dof.index
         return np.array([self.u[i * self.dpn + j] for i in range(self.n_nodes)])
 
     def plot_deformed(self, nodes_xyz: np.ndarray, scale: float = 1.0) -> None:
@@ -148,7 +156,7 @@ class FEMSolver:
         import matplotlib.pyplot as plt
         from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
-        w = self.get_component("w")
+        w = self.get_component(DofName.W)
         XYZ = np.asarray(nodes_xyz, dtype=float)
         XYZ_def = XYZ.copy()
         XYZ_def[:, 2] += scale * w
@@ -242,12 +250,12 @@ if __name__ == "__main__":
 
     # Loads:
     # - Apply downward load to w-DOF at nodes 1 and 2
-    solver.load(1, "w", -1.0)
-    solver.load(2, "w", -1.0)
+    solver.load(1, DofName.W, -1.0)
+    solver.load(2, DofName.W, -1.0)
 
     # Solve
     u, K, f = solver.solve()
 
     # Plot
     XYZ = np.array([[n.x, n.y, n.z] for n in nodes])
-    solver.plot_deformed(XYZ, scale=100.0)
+    solver.plot_deformed(XYZ, scale=1000.0)
