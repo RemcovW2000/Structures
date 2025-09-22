@@ -2,7 +2,6 @@
 import copy
 
 import numpy as np
-from tqdm import tqdm
 
 # Local imports - use relative imports within the package
 from structures.panel.base_components.lamina import Lamina
@@ -319,7 +318,7 @@ class Laminate(StructuralEntity):
 
         FailureStrainsList = []
 
-        for angle in tqdm(angles):
+        for angle in angles:
             loadingratio = np.array(
                 [
                     [0],

@@ -83,7 +83,21 @@ class CompositeElement(Element):
         super().__init__(id, nodes, orientation)
         self.ABD = ABD
         self.As = As
-        self.Ke_local, self.R, self.origin = plate4_mindlin_stiffness(ABD, self.nodes, As)
+        # Compute local stiffness
+        self.Ke_local, self.orientation, self.origin = plate4_mindlin_stiffness(
+            ABD, self.nodes, orientation, As
+        )
+        # Build local->global transformation per node (5x5), then expand to 20x20
+        R = self.orientation.as_matrix()
+        Tn = np.zeros((5, 5), dtype=float)
+        Tn[0:3, 0:3] = R  # translations
+        Tn[3:5, 3:5] = R[0:2, 0:2]  # rotations about x,y (ignore rz)
+        self.T_local_to_global = np.zeros((20, 20), dtype=float)
+        for a in range(4):
+            i0 = a * 5
+            self.T_local_to_global[i0 : i0 + 5, i0 : i0 + 5] = Tn
+        # Rotate to global
+        self.Ke_global = self.T_local_to_global.T @ self.Ke_local @ self.T_local_to_global
 
 
 def plate4_mindlin_stiffness(
