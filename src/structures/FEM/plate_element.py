@@ -2,22 +2,108 @@ import numpy as np
 from typing import Optional, Tuple
 
 
+class Vector:
+    def __init__(self, x: float, y: float, z: float):
+        self.x = x
+        self.y = y
+        self.z = z
+
+
+class Node:
+    def __init__(self, id: int, x: float, y: float, z: float):
+        self.id = id
+        self.x = x
+        self.y = y
+        self.z = z
+
+    def as_array(self) -> np.ndarray:
+        return np.array([self.x, self.y, self.z], dtype=float)
+
+
+class Vector:
+    def __init__(self, x: float, y: float, z: float):
+        self.x: float = x
+        self.y: float = y
+        self.z: float = z
+        self.norm: float = self.calculate_norm()
+
+    def calculate_norm(self) -> float:
+        return (self.x**2 + self.y**2 + self.z**2) ** 0.5
+
+    def is_orthogonal_to(self, other: "Vector", tol: float = 1e-6) -> bool:
+        dot_product = self.x * other.x + self.y * other.y + self.z * other.z
+        return abs(dot_product) < tol
+
+    def dot(self, other: "Vector") -> float:
+        return self.x * other.x + self.y * other.y + self.z * other.z
+
+
+class Orientation:
+    def __init__(self, vx: Vector, vy: Vector, vz: Vector):
+        self.vx = vx
+        self.vy = vy
+        self.vz = vz
+
+        self.orthogonality_tolerance = 1e-6
+
+    def is_orthogonal(self) -> bool:
+        return (
+            self.vx.is_orthogonal_to(self.vy, self.orthogonality_tolerance)
+            and self.vy.is_orthogonal_to(self.vz, self.orthogonality_tolerance)
+            and self.vz.is_orthogonal_to(self.vx, self.orthogonality_tolerance)
+        )
+
+    def as_matrix(self) -> np.ndarray:
+        """Return a 3x3 rotation matrix with columns [ex ey ez]."""
+        return np.column_stack(
+            (
+                np.array([self.vx.x, self.vx.y, self.vx.z], dtype=float),
+                np.array([self.vy.x, self.vy.y, self.vy.z], dtype=float),
+                np.array([self.vz.x, self.vz.y, self.vz.z], dtype=float),
+            )
+        )
+
+
+class Element:
+    def __init__(self, id: int, nodes: list[Node], orientation: Orientation):
+        self.id: int = id
+        self.nodes: list[Node] = nodes
+        self.orientation: Orientation = orientation
+
+
+class CompositeElement(Element):
+    def __init__(
+        self,
+        id: int,
+        nodes: list[Node],
+        orientation: Orientation,
+        ABD: np.ndarray,
+        As: Optional[np.ndarray] = None,
+    ):
+        super().__init__(id, nodes, orientation)
+        self.ABD = ABD
+        self.As = As
+        self.Ke_local, self.R, self.origin = plate4_mindlin_stiffness(ABD, self.nodes, As)
+
+
 def plate4_mindlin_stiffness(
     ABD: np.ndarray,
-    nodes_xyz: np.ndarray,
+    nodes: list[Node],
+    orientation: Orientation,
     As: Optional[np.ndarray] = None,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> Tuple[np.ndarray, Orientation, np.ndarray]:
     """
     Build the 4-node Mindlin-Reissner plate/shell element stiffness matrix from ABD and node coords.
 
     Inputs:
       ABD: 6x6 laminate stiffness (A,B,D partitioned as ABD[:3,:3], ABD[:3,3:], ABD[3:,3:])
-      nodes_xyz: (4,3) array of node coordinates in 3D
+      nodes: a list of 4 Node objects (approximately coplanar)
+      orientation: Orientation object defining local axes (ex, ey, ez)
       As: optional 2x2 transverse shear stiffness matrix (e.g., kappa * h * [[Gxz, 0],[0, Gyz]])
 
     Returns:
       Ke_local: (20,20) element stiffness in local plate axes with 5 dof/node [u, v, w, rx, ry]
-      R: (3,3) local-to-global rotation matrix [ex ey ez] as columns
+      orientation: the same Orientation passed in (use orientation.as_matrix() for algebra)
       origin: (3,) element centroid in global coords
 
     Notes:
@@ -26,40 +112,21 @@ def plate4_mindlin_stiffness(
         local frame per element or extend to a 6 dof/node shell formulation.
       - Requires nodes to be approximately coplanar.
     """
-    # Validate input
-    if ABD.shape != (6, 6):
-        raise ValueError("ABD must be 6x6.")
-    if nodes_xyz.shape != (4, 3):
-        raise ValueError("This implementation supports 4-node quads only with shape (4,3).")
-    if As is not None and As.shape != (2, 2):
-        raise ValueError("As must be 2x2 when provided.")
-
     dtype = ABD.dtype
-    nodes_xyz = np.asarray(nodes_xyz, dtype=dtype)
+    node_coordinates_global = np.array([n.as_array() for n in nodes], dtype=dtype)
 
     # Partition ABD
-    A = ABD[0:3, 0:3]
-    B = ABD[0:3, 3:6]
-    D = ABD[3:6, 3:6]
+    A_extensional = ABD[0:3, 0:3]
+    B_coupling = ABD[0:3, 3:6]
+    D_bending = ABD[3:6, 3:6]
 
-    # Build local plate frame from best-fit plane (PCA)
-    origin = nodes_xyz.mean(axis=0)
-    X = nodes_xyz - origin
-    C = X.T @ X
-    eigvals, eigvecs = np.linalg.eigh(C)
-    # Largest two eigenvectors span the plane
-    idx = np.argsort(eigvals)[::-1]
-    ex = eigvecs[:, idx[0]]
-    ey = eigvecs[:, idx[1]]
-    # Ensure orthonormal, right-handed frame
-    ex = ex / np.linalg.norm(ex)
-    ez = np.cross(ex, ey)
-    ez /= np.linalg.norm(ez)
-    ey = np.cross(ez, ex)
-    R = np.column_stack((ex, ey, ez))  # columns are local axes in global coords
+    # Local plate frame from provided orientation
+    R = orientation.as_matrix()
+    # Element centroid in global coordinates
+    origin = node_coordinates_global.mean(axis=0)
 
     # Project nodes to local 2D plane
-    nodes_local = (R.T @ (nodes_xyz - origin).T).T  # shape (4,3)
+    nodes_local = (R.T @ (node_coordinates_global - origin).T).T  # shape (4,3)
     xy = nodes_local[:, :2].copy()  # (x,y) in local plane
 
     # 2x2 Gauss quadrature
@@ -150,76 +217,17 @@ def plate4_mindlin_stiffness(
 
         # Integrate stiffness at Gauss point
         dA = detJ * wgt
-        Kgp = Bm.T @ A @ Bm + Bm.T @ B @ Bb + Bb.T @ B.T @ Bm + Bb.T @ D @ Bb
+        Kgp = (
+            Bm.T @ A_extensional @ Bm
+            + Bm.T @ B_coupling @ Bb
+            + Bb.T @ B_coupling.T @ Bm
+            + Bb.T @ D_bending @ Bb
+        )
         if As is not None:
             Kgp += Bs.T @ As @ Bs
 
         Ke += Kgp * dA
-
-    return Ke, R, origin
-
-
-class Vector:
-    def __init__(self, x: float, y: float, z: float):
-        self.x = x
-        self.y = y
-        self.z = z
-
-
-class Orientation:
-    def __init__(self, ex: Vector, ey: Vector, ez: Vector):
-        self.ex = ex
-        self.ey = ey
-        self.ez = ez
-
-    def is_orthogonal(self) -> bool:
-        # Check if the vectors are orthogonal and normalized
-        def dot(v1: Vector, v2: Vector) -> float:
-            return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z
-
-        def norm(v: Vector) -> float:
-            return (v.x**2 + v.y**2 + v.z**2) ** 0.5
-
-        return (
-            abs(dot(self.ex, self.ey)) < 1e-6
-            and abs(dot(self.ey, self.ez)) < 1e-6
-            and abs(dot(self.ez, self.ex)) < 1e-6
-            and abs(norm(self.ex) - 1) < 1e-6
-            and abs(norm(self.ey) - 1) < 1e-6
-            and abs(norm(self.ez) - 1) < 1e-6
-        )
-
-
-class Node:
-    def __init__(self, id: int, x: float, y: float, z: float):
-        self.id = id
-        self.x = x
-        self.y = y
-        self.z = z
-
-
-class Element:
-    def __init__(self, id: int, nodes: list[Node], orientation: Orientation):
-        self.id = id
-        self.nodes = nodes
-        self.orientation = orientation
-
-
-class CompositeElement(Element):
-    def __init__(
-        self,
-        id: int,
-        nodes: list[Node],
-        orientation: Orientation,
-        ABD: np.ndarray,
-        As: Optional[np.ndarray] = None,
-    ):
-        super().__init__(id, nodes, orientation)
-        self.ABD = ABD
-        self.As = As
-        self.Ke_local, self.R, self.origin = plate4_mindlin_stiffness(
-            ABD, self.get_node_coords(), As
-        )
+    return Ke, orientation, origin
 
 
 if __name__ == "__main__":
@@ -237,56 +245,61 @@ if __name__ == "__main__":
     # As = kappa * h * np.diag([G, G])
     As = None
 
-    # Define 6 unique global nodes for two unit quads in XY-plane (z=0)
+    # Define 6 unique global Node instances for two unit quads in XY-plane (z=0)
     # Node layout (indices in parentheses):
     # (0)---(1)---(2)
     #  |  e0 | e1  |
     # (3)---(4)---(5)
-    nodes = np.array(
-        [
-            [0.0, 0.0, 0.0],  # 0
-            [1.0, 0.0, 0.0],  # 1
-            [2.0, 0.0, 0.0],  # 2
-            [0.0, 1.0, 0.0],  # 3
-            [1.0, 1.0, 0.0],  # 4
-            [2.0, 1.0, 0.0],  # 5
-        ],
-        dtype=ABD.dtype,
-    )
+    all_nodes: list[Node] = [
+        Node(0, 0.0, 0.0, 0.0),  # 0
+        Node(1, 1.0, 0.0, 0.0),  # 1
+        Node(2, 2.0, 0.0, 0.0),  # 2
+        Node(3, 0.0, 1.0, 0.0),  # 3
+        Node(4, 1.0, 1.0, 0.0),  # 4
+        Node(5, 2.0, 1.0, 0.0),  # 5
+    ]
 
     # Element connectivities (counter-clockwise):
     # e0: (0,1,4,3); e1: (1,2,5,4)
-    elements = [
+    element_connectivities = [
         (0, 1, 4, 3),
         (1, 2, 5, 4),
     ]
 
+    # Define a common Orientation aligned with global axes (XY plane)
+    ex = Vector(1.0, 0.0, 0.0)
+    ey = Vector(0.0, 1.0, 0.0)
+    ez = Vector(0.0, 0.0, 1.0)
+    global_xy_orientation = Orientation(ex, ey, ez)
+
     dof_per_node = 5
-    ndof = nodes.shape[0] * dof_per_node
+    ndof = len(all_nodes) * dof_per_node
     K_global = np.zeros((ndof, ndof), dtype=ABD.dtype)
 
-    def dof_indices(conn):
+    def dof_indices(conn: Tuple[int, int, int, int]) -> np.ndarray:
         idx = []
-        for n in conn:
-            base = n * dof_per_node
+        for n_id in conn:
+            base = n_id * dof_per_node
             idx.extend([base + 0, base + 1, base + 2, base + 3, base + 4])
         return np.array(idx, dtype=int)
 
     # Assemble
-    first_R = None
+    first_orientation_matrix = None
     first_origin = None
-    for conn in elements:
-        nodes_xyz = nodes[list(conn)]
-        Ke_local, R, origin = plate4_mindlin_stiffness(ABD, nodes_xyz, As=As)
+    for conn in element_connectivities:
+        element_nodes = [all_nodes[i] for i in conn]
+        Ke_local, orient, origin = plate4_mindlin_stiffness(
+            ABD, element_nodes, global_xy_orientation, As=As
+        )
         gdofs = dof_indices(conn)
-        # Elements lie in XY plane -> local ~ global, assemble directly
+        # Elements lie in XY plane and orientation matches global axes -> assemble directly
         K_global[np.ix_(gdofs, gdofs)] += Ke_local
-        if first_R is None:
-            first_R, first_origin = R, origin
+        if first_orientation_matrix is None:
+            first_orientation_matrix, first_origin = orient.as_matrix(), origin
 
     # Print a brief summary
     np.set_printoptions(precision=3, suppress=True)
     print("Global stiffness K shape:", K_global.shape)
     print("First element centroid (global):", first_origin)
-    print("First element local axes (columns of R):\n", first_R)
+    print("First element local axes (columns of R):\n", first_orientation_matrix)
     print("K_global top-left 12x12 block:\n", K_global[:12, :12])
