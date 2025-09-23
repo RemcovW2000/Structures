@@ -1,8 +1,5 @@
-# External packages
-
 import numpy as np
 
-# Local imports - use relative imports within the package
 from structures.panel.base_components.lamina import Lamina
 
 from ..structural_entity import StructuralEntity
@@ -28,14 +25,13 @@ class Laminate(StructuralEntity):
         return self.laminas
 
     def assign_lamina_height(self) -> None:
+        """Assign z0 and z1 heights to each lamina in the laminate."""
         h = 0
-        for i in self.laminas:
-            # assign z0 and z1 for each layer:
-            i.z0 = h
-            i.z1 = h + i.t
+        for lamina in self.laminas:
+            lamina.z0 = h
+            lamina.z1 = h + lamina.t
+            h += lamina.t
 
-            # keep track of total h
-            h += i.t
         self.h = h
 
         # Center around z=0:
@@ -44,17 +40,12 @@ class Laminate(StructuralEntity):
             lamina.z1 = lamina.z1 - 0.5 * h
 
     def calculate_ABD(self) -> None:
-        # Initialize A_ij as a zero matrix
-
-        # Initalizing the A, B and D matrix:
+        """Calculate the ABD matrix of the laminate."""
         A_matrix = np.zeros((3, 3))
         B_matrix = np.zeros((3, 3))
         D_matrix = np.zeros((3, 3))
 
-        # Per lamina we calculate the three matrices
         for lamina in self.laminas:
-            # First we recalculate the Q and S matrix of the lamina:
-
             # Calculate the difference (Z_k - Z_k-1)
             delta_Z = lamina.z1 - lamina.z0
             # Update A_ij by adding the product of Q(k) and the difference in Z

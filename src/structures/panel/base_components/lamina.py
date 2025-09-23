@@ -78,7 +78,6 @@ class Lamina(StructuralEntity):
         z1: Optional[float] = None,
         sigma: Optional[NDArray[np.float64]] = None,
         epsilon: Optional[NDArray[np.float64]] = None,
-        failure_state: int = 0,
     ) -> None:
         super().__init__("lamina")
 
