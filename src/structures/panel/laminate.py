@@ -39,7 +39,7 @@ class Laminate(StructuralEntity):
             lamina.z0 = lamina.z0 - 0.5 * h
             lamina.z1 = lamina.z1 - 0.5 * h
 
-    def calculate_ABD(self) -> None:
+    def calculate_ABD(self) -> np.ndarray:
         """Calculate the ABD matrix of the laminate."""
         A_matrix = np.zeros((3, 3))
         B_matrix = np.zeros((3, 3))
@@ -52,7 +52,7 @@ class Laminate(StructuralEntity):
             A_matrix += lamina.Qbar * delta_Z
 
             # Now the same for b and d matrices:
-            delta_Z_squared = lamina.z1**2 - lamina.z0**2
+            delta_Z_squared = lamina.z0**2 - lamina.z1**2
             B_matrix += 1 / 2 * (lamina.Qbar * delta_Z_squared)
 
             delta_Z_cubed = lamina.z1**3 - lamina.z0**3
@@ -69,71 +69,44 @@ class Laminate(StructuralEntity):
         self.ABD_matrix = np.block([[A_matrix, B_matrix], [B_matrix, D_matrix]])
 
         self.ABD_matrix_inverse = np.linalg.inv(self.ABD_matrix)
+        return self.ABD_matrix
 
     def calculate_weight_per_A(self) -> float:
         """Calculates weight per unit area of laminate."""
         return sum([lamina.calculate_weight_per_A() for lamina in self.laminas])
 
-    def calculate_strains(self) -> np.ndarray:
-        # First we RECALCULATE the ABD matrix ->
-        # this because based on the failure_state of the lamina,
-        # They will have different Q matrices
-        self.calculate_ABD()
-
-        # Then we check if the loads are assigned and calculate the strains:
-        if self.Loads is not None:
-            self.Strains = np.zeros((6, 1))
-            self.Strains = np.linalg.inv(self.ABD_matrix) @ self.Loads
-        else:
-            print("loads is nonetype")
-
+    def calculate_strains_from_loads(self) -> np.ndarray:
+        self.Strains = np.linalg.inv(self.ABD_matrix) @ self.Loads
         return self.Strains
 
-    def get_strains(self) -> np.ndarray:
-        """
-        Calculate strains by inverting the ABD matrix and multiplying it with the Loads.
-
-        Function takes into account the current failure state of the laminate,
-        """
-        Strains = np.linalg.inv(self.ABD_matrix) @ self.Loads
-        return Strains
-
-    def calculate_loads(self) -> None:
-        """
-        Recalculate the ABD matrix and compute laminate loads from assigned global strains.
-        Raises ValueError if strains are not set.
-        """
-        self.calculate_ABD()
-        if self.Strains is not None:
-            self.Loads = np.zeros((6, 1))
-            self.Loads = self.ABD_matrix @ self.Strains
-        else:
-            raise ValueError("Strains is NoneType, cannot calculate loads.")
+    def calculate_loads_from_strains(self) -> np.ndarray:
+        self.Loads = self.ABD_matrix @ self.Strains
+        return self.Loads
 
     def calculate_lamina_strains(self) -> None:
         """
-        Calculate strains per lamina based on global strains.
+        Calculate strains per lamina based on global laminate.
+
+        Find max strain by comparing strain at z0 and z1 and picking the one with
+        maximum absolute value. Set this as the lamina strain. This is used
+        for failure analysis in the lamina.
         """
-        # To calculate lamina strains we first need global strains
-        self.calculate_strains()
+        Strains = self.calculate_strains_from_loads()
 
-        Strains = self.Strains
-
-        # we go through all the lamina:
-        for i in self.laminas:
-            # Given the fact that strain is a linear gradient in the laminate, we can
-            # find the max strain per lamina by finding picking the max between strain
-            # at z0 vs z1
-            max1 = max(Strains[0] - i.z0 * Strains[3], Strains[0] - i.z1 * Strains[3], key=abs)
-            max2 = max(Strains[1] - i.z0 * Strains[4], Strains[1] - i.z1 * Strains[4], key=abs)
-            max3 = max(Strains[2] - i.z0 * Strains[5], Strains[2] - i.z1 * Strains[5], key=abs)
-            i.Epsilon = np.array([max1, max2, max3])
+        for lamina in self.laminas:
+            max1 = max(
+                Strains[0] - lamina.z0 * Strains[3], Strains[0] - lamina.z1 * Strains[3], key=abs
+            )
+            max2 = max(
+                Strains[1] - lamina.z0 * Strains[4], Strains[1] - lamina.z1 * Strains[4], key=abs
+            )
+            max3 = max(
+                Strains[2] - lamina.z0 * Strains[5], Strains[2] - lamina.z1 * Strains[5], key=abs
+            )
+            lamina.Epsilon = np.array([max1, max2, max3])
 
     def calculate_equivalent_properties(self) -> tuple[list[float], list[float]]:
-        """
-        Calculate equivalent engineering properties of the laminate.
-        """
-        # Here we calculate the engineering constants (or equivalent properties):
+        """Calculate equivalent engineering properties of the laminate."""
         self.Ex = (self.A_matrix[0, 0] * self.A_matrix[1, 1] - self.A_matrix[0, 1] ** 2) / (
             self.h * self.A_matrix[1, 1]
         )
@@ -162,7 +135,8 @@ class Laminate(StructuralEntity):
         ]
 
     def stress_analysis(self) -> np.ndarray:
-        # We need to make sure the lamina have strains:
+        """Carry out stress analysis for all lamina in laminate."""
+        # make sure the lamina strains are calculated:
         self.calculate_lamina_strains()
 
         # we need a method to store the stresses so we can check the stresses
@@ -242,8 +216,8 @@ class Laminate(StructuralEntity):
         CoreABD = np.block([[A_matrix, B_matrix], [B_matrix, D_matrix]])
         return CoreABD
 
-    # Function to create the rotation matrix
-    def rotation_matrix(self, theta: float) -> np.ndarray:
+    @staticmethod
+    def rotation_matrix(theta: float) -> np.ndarray:
         c = np.cos(theta)
         s = np.sin(theta)
         return np.array(
