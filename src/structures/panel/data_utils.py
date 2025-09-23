@@ -25,7 +25,7 @@ class FailureProperties:
     Attributes:
         E11f: Fiber-direction modulus used in fiber failure relation (if applicable).
         v21f: Poisson's ratio 2->1 used in fiber failure adjustment.
-        msf: Material safety/compensation factor (e.g., 1.3 for GFRP, 1.1 for CFRP).
+        msf: MaterialProperties safety/compensation factor (e.g., 1.3 for GFRP, 1.1 for CFRP).
         R11t: Longitudinal tensile strength.
         R11c: Longitudinal compressive strength (positive magnitude).
         Yt: Transverse tensile strength.
@@ -66,7 +66,7 @@ class CoreProperties:
 
 
 @dataclass(frozen=True)
-class Material:
+class MaterialProperties:
     """Composite material definition combining elastic and failure properties.
 
     Attributes:
