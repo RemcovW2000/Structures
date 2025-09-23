@@ -28,3 +28,5 @@ T700 = MaterialProperties(
     elastic_properties=ElasticProperties(135000, 11200, 5000, 0.3),
     failure_properties=FailureProperties(230000, 0.2, 1.1, 2550, 1470, 69, 300, 100),
 )
+
+DEFAULT_MATERIAL = Christos
