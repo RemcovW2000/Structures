@@ -1,8 +1,9 @@
-def test_laminate_builder() -> None:
-    from structures.panel.data.lamina_props import DEFAULT_MATERIAL
-    from structures.panel.laminate import Laminate
-    from structures.panel.utils import laminate_builder
+from structures.panel.data.lamina_props import DEFAULT_MATERIAL
+from structures.panel.laminate import Laminate
+from structures.panel.utils import laminate_builder
 
+
+def test_laminate_builder() -> None:
     angleslist = [0, 45, -45, 90]
     symmetry = True
     copycenter = False
