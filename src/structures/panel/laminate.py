@@ -17,32 +17,31 @@ class Laminate(StructuralEntity):
         self.Loads: list[float] = Loads
         self.Strains: list[float] = Strains
         self.sandwich: bool = False
+        self.stackingsequence: list[float] = [lamina.theta_deg for lamina in laminas]
 
-        # We calculate the thickness and find layer start and end height:
-        h = 0
-        for i in laminas:
-            # assign z0 and z1 for each layer:
-            i.z0 = h
-            i.z1 = h + i.t
-
-            # keep track of total h
-            h += i.t
-
-        # now we subtract 0.5 times the height of the laminate to center it around z=0
-        for i in laminas:
-            i.z0 = i.z0 - 0.5 * h
-            i.z1 = i.z1 - 0.5 * h
-        self.h: float = h
-
-        self.stackingsequence: list[float] = [lamina.theta_ for lamina in laminas]
-
-        # We calculate the ABD matrix in initialisation
+        self.assign_lamina_height()
         self.calculate_ABD()
         self.calculate_equivalent_properties()
 
     @property
     def child_objects(self) -> list[Lamina]:
         return self.laminas
+
+    def assign_lamina_height(self) -> None:
+        h = 0
+        for i in self.laminas:
+            # assign z0 and z1 for each layer:
+            i.z0 = h
+            i.z1 = h + i.t
+
+            # keep track of total h
+            h += i.t
+        self.h = h
+
+        # Center around z=0:
+        for lamina in self.laminas:
+            lamina.z0 = lamina.z0 - 0.5 * h
+            lamina.z1 = lamina.z1 - 0.5 * h
 
     def calculate_ABD(self) -> None:
         # Initialize A_ij as a zero matrix
