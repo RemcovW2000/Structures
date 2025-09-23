@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 
+from structures.panel.data.lamina_props import Christos
 from structures.panel.utils import laminate_builder
 
 
@@ -53,7 +54,21 @@ from structures.panel.utils import laminate_builder
 )
 def test_ABD(angles_list: list[float], expected_ABD: np.ndarray) -> None:
     laminate = laminate_builder(angles_list, False, False, 1)
-    print("hello")
-    print(laminate.ABD_matrix)
-    print(expected_ABD)
     np.testing.assert_allclose(laminate.ABD_matrix, expected_ABD, rtol=1e-5, atol=1e-6)
+
+
+@pytest.mark.parametrize(
+    "angles_list, expected_engineering_properties",
+    [
+        ([0, 90, 45, -45], [55105.2, 55105.2, 20940.9, 0.3157]),
+        ([10, 20, 30, 40], [45340.3, 13494.2, 9395.95, 0.2275]),
+    ],
+)
+def test_engineering_properties(
+    angles_list: list[float], expected_engineering_properties: list[float]
+) -> None:
+    laminate = laminate_builder(angles_list, True, True, 1, material_props=Christos)
+    assert laminate.Ex == pytest.approx(expected_engineering_properties[0], rel=1e-2)
+    assert laminate.Ey == pytest.approx(expected_engineering_properties[1], rel=1e-2)
+    assert laminate.Gxy == pytest.approx(expected_engineering_properties[2], rel=1e-2)
+    assert laminate.vxy == pytest.approx(expected_engineering_properties[3], rel=1e-2)
