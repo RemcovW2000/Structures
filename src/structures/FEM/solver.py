@@ -6,6 +6,8 @@ import numpy as np
 from dataclasses import dataclass
 from typing import Optional, Iterable
 
+from structures.FEM.mesh import Mesh
+
 
 # Simple node/element-based FEM solver for plate/shell elements -----------------
 
@@ -34,8 +36,23 @@ class Dirichlet:
 @dataclass(frozen=True)
 class NodalLoad:
     node_id: int
-    dof: DofName | int
+    dof: DofName
     value: float
+
+
+@dataclass(frozen=True)
+class NodalDeformation:
+    """Per-node deformation container for convenience mapping.
+
+    Holds the original Node reference and all 5 DOF components.
+    """
+
+    node: "Node"
+    u: float
+    v: float
+    w: float
+    rx: float
+    ry: float
 
 
 class FEMSolver:
@@ -53,20 +70,23 @@ class FEMSolver:
       - Assembling multiple elements is supported (same dof_per_node across).
     """
 
-    def __init__(self, n_nodes: int, dof_per_node: int = 5):
-        self.n_nodes = n_nodes
-        self.dpn = dof_per_node
-        self.ndof = n_nodes * dof_per_node
-        self.K = np.zeros((self.ndof, self.ndof), dtype=float)
-        self.f = np.zeros(self.ndof, dtype=float)
+    def __init__(self, mesh):
+        self.mesh = mesh
+        self.n_nodes = len(mesh.nodes)
+        self.dpn = mesh.dof_per_node
+        self.no_dof = mesh.no_dof
+        self.K = np.zeros((self.no_dof, self.no_dof), dtype=float)
+        self.f = np.zeros(self.no_dof, dtype=float)
         self._dirichlet: list[Dirichlet] = []
         self.u: Optional[np.ndarray] = None
         self._elements: list[tuple[int, ...]] = []  # store element connectivities
+        self.nodal_deformations: dict[int, NodalDeformation] = {}
+
+        self.assemble_stifness_matrix(self.mesh)
 
     # --- DOF mapping -----------------------------------------------------
 
     def dof_index(self, node_id: int, dof: DofName) -> int:
-        index = dof.index
         return node_id * self.dpn + dof.index
 
     def element_dof_indices(self, connectivity: Iterable[int]) -> np.ndarray:
@@ -91,6 +111,10 @@ class FEMSolver:
         conn = tuple(n.id for n in element.nodes)
         self.add_element(Ke, connectivity=conn)
 
+    def assemble_stifness_matrix(self, mesh: Mesh) -> None:
+        for element in mesh.elements:
+            self.add_composite_element(element)
+
     # --- Loads & BCs -----------------------------------------------------
     def load(self, node_id: int, dof: DofName, value: float) -> None:
         self.f[self.dof_index(node_id, dof)] += value
@@ -107,7 +131,7 @@ class FEMSolver:
         """Solve K u = f with Dirichlet constraints.
 
         Returns:
-          - u: full displacement vector (size ndof)
+          - u: full displacement vector (size no_dof)
           - K: assembled global stiffness
           - f: assembled global load vector
         """
@@ -116,7 +140,7 @@ class FEMSolver:
 
         fixed = np.array([self.dof_index(b.node_id, b.dof) for b in self._dirichlet], dtype=int)
         fixed_values = np.array([b.value for b in self._dirichlet], dtype=float)
-        free = np.setdiff1d(np.arange(self.ndof, dtype=int), fixed, assume_unique=False)
+        free = np.setdiff1d(np.arange(self.no_dof, dtype=int), fixed, assume_unique=False)
 
         # Partition
         K_ff = self.K[np.ix_(free, free)]
@@ -127,22 +151,44 @@ class FEMSolver:
         u_f = np.linalg.solve(K_ff, f_f)
 
         # Full solution
-        u = np.zeros(self.ndof, dtype=float)
+        u = np.zeros(self.no_dof, dtype=float)
         u[free] = u_f
         u[fixed] = fixed_values
         self.u = u
         return u, self.K, self.f
 
-    # --- Post-processing ------------------------------------------------
+    # --- Post-processing ----------------w--------------------------------
     def get_component(self, dof: DofName) -> np.ndarray:
         """Return a nodal array of a displacement/rotation component.
 
-        dof: one of {"u","v","w","rx","ry"} or 0..4
+        dof: one of DofName.{U,V,W,RX,RY}
         """
         if self.u is None:
             raise RuntimeError("No solution available; call solve() first.")
         j = dof.index
         return np.array([self.u[i * self.dpn + j] for i in range(self.n_nodes)])
+
+    def build_nodal_deformations(self) -> dict[int, NodalDeformation]:
+        """Populate and return a mapping of node.id to NodalDeformation.
+
+        Requires a solved system (self.u not None). The provided nodes must
+        have ids that match the assembly ordering (0..n_nodes-1).
+        """
+        nodes = []
+        mapping: dict[int, NodalDeformation] = {}
+        for node in nodes:
+            base = node.id * self.dpn
+            nd = NodalDeformation(
+                node=node,
+                u=float(self.u[base + DofName.U.index]),
+                v=float(self.u[base + DofName.V.index]),
+                w=float(self.u[base + DofName.W.index]),
+                rx=float(self.u[base + DofName.RX.index]),
+                ry=float(self.u[base + DofName.RY.index]),
+            )
+            mapping[node.id] = nd
+        self.nodal_deformations = mapping
+        return mapping
 
     def plot_deformed(self, nodes_xyz: np.ndarray, scale: float = 1.0) -> None:
         """Plot undeformed and deformed mesh (Z displaced by scale * w) for all added elements.
@@ -214,7 +260,7 @@ if __name__ == "__main__":
 
     # Build symmetric quasi-isotropic laminate and compute ABD
     laminate = laminate_builder(
-        [0, 90, 45, -45], symmetry=True, copycenter=True, multiplicity=1, type="T700"
+        [0, 0, 0], symmetry=True, copycenter=True, multiplicity=1, type="T700"
     )
     ABD = laminate.ABD_matrix
 
@@ -239,9 +285,10 @@ if __name__ == "__main__":
     # Build element (Ke computed inside CompositeElement)
     element = CompositeElement(id=0, nodes=nodes, orientation=orientation, ABD=ABD, As=As)
 
+    mesh = Mesh(nodes=nodes, elements=[element])
+
     # Build solver for 4 nodes x 5 dof/node
-    solver = FEMSolver(n_nodes=len(nodes), dof_per_node=5)
-    solver.add_composite_element(element)
+    solver = FEMSolver(mesh)
 
     # Boundary conditions:
     # - Fix node 0 and node 1 fully (all 5 DOFs)
@@ -258,4 +305,6 @@ if __name__ == "__main__":
 
     # Plot
     XYZ = np.array([[n.x, n.y, n.z] for n in nodes])
+    # Build nodal deformation map and plot
+    solver.build_nodal_deformations()
     solver.plot_deformed(XYZ, scale=1000.0)

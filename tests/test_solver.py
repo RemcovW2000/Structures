@@ -1,8 +1,7 @@
 import numpy as np
-import pytest
 
 from structures.FEM.plate_element import Node, Vector, Orientation, CompositeElement
-from structures.FEM.solver import FEMSolver
+from structures.FEM.solver import FEMSolver, DofName
 
 
 def test_one_element_uniaxial_membrane_extension():
@@ -37,18 +36,18 @@ def test_one_element_uniaxial_membrane_extension():
     # Boundary conditions:
     # - Fix out-of-plane DOFs everywhere to avoid singularities (w, rx, ry)
     for nid in range(len(nodes)):
-        solver.fix(nid, "w", 0.0)
-        solver.fix(nid, "rx", 0.0)
-        solver.fix(nid, "ry", 0.0)
+        solver.fix(nid, DofName.W, 0.0)
+        solver.fix(nid, DofName.RX, 0.0)
+        solver.fix(nid, DofName.RY, 0.0)
     # - Fix left edge (nodes 0 & 3) in-plane DOFs to remove rigid body motion
     for nid in (0, 3):
-        solver.fix(nid, "u", 0.0)
-        solver.fix(nid, "v", 0.0)
+        solver.fix(nid, DofName.U, 0.0)
+        solver.fix(nid, DofName.V, 0.0)
 
     # Loads: +Fx at the two right-edge nodes (1 & 2)
     p = 10.0
     for nid in (1, 2):
-        solver.load(nid, "u", p)
+        solver.load(nid, DofName.U, p)
 
     # Solve
     u, K, f = solver.solve()

@@ -15,6 +15,7 @@ class Node:
         self.x = x
         self.y = y
         self.z = z
+        self.dof_per_node = 5
 
     def as_array(self) -> np.ndarray:
         return np.array([self.x, self.y, self.z], dtype=float)
