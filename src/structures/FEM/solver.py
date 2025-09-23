@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import enum
+from collections.abc import Iterable
+from dataclasses import dataclass
+from typing import Optional
 
 import numpy as np
-from dataclasses import dataclass
-from typing import Optional, Iterable
 
 from structures.FEM.mesh import Mesh
-
 
 # Simple node/element-based FEM solver for plate/shell elements -----------------
 
@@ -19,7 +19,7 @@ class DofName(enum.Enum):
     RX = ("rx", 3)
     RY = ("ry", 4)
 
-    def __new__(cls, description, index):
+    def __new__(cls, description: str, index: int) -> DofName:
         obj = object.__new__(cls)
         obj.index = index
         obj.description = description
@@ -47,7 +47,7 @@ class NodalDeformation:
     Holds the original Node reference and all 5 DOF components.
     """
 
-    node: "Node"
+    node: Node
     u: float
     v: float
     w: float
@@ -70,7 +70,7 @@ class FEMSolver:
       - Assembling multiple elements is supported (same dof_per_node across).
     """
 
-    def __init__(self, mesh):
+    def __init__(self, mesh: Mesh):
         self.mesh = mesh
         self.n_nodes = len(mesh.nodes)
         self.dpn = mesh.dof_per_node
@@ -102,7 +102,7 @@ class FEMSolver:
         self.K[np.ix_(edofs, edofs)] += Ke
         self._elements.append(tuple(int(i) for i in connectivity))
 
-    def add_composite_element(self, element: "CompositeElement") -> None:
+    def add_composite_element(self, element: CompositeElement) -> None:
         """Assemble a CompositeElement using its globally rotated stiffness.
 
         Requires element.Ke_global to be present (as provided by CompositeElement).
@@ -250,13 +250,13 @@ class FEMSolver:
 
 # Demo: 1-element plate with BC/loads API -------------------------------------
 if __name__ == "__main__":
-    from structures.panel.utils import laminate_builder
     from structures.FEM.plate_element import (
-        Node,
-        Vector,
-        Orientation,
         CompositeElement,
+        Node,
+        Orientation,
+        Vector,
     )
+    from structures.panel.utils import laminate_builder
 
     # Build symmetric quasi-isotropic laminate and compute ABD
     laminate = laminate_builder(

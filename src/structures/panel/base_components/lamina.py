@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional, Tuple
+from typing import Optional
 
 import numpy as np
 from numpy.typing import NDArray
@@ -151,7 +151,7 @@ class Lamina(StructuralEntity):
         return self.sigma
 
     # --- Failure criteria -------------------------------------------------
-    def failure_analysis(self) -> Tuple[int, float, float]:
+    def failure_analysis(self) -> tuple[int, float, float]:
         """Calculate failure indicators for inter-fiber and fiber failure.
 
         Returns:

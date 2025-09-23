@@ -1,13 +1,12 @@
 import numpy as np
-import pytest
 
-from structures.panel.utils import laminate_builder
-from structures.FEM.plate_element import Node, Vector, Orientation, CompositeElement
+from structures.FEM.plate_element import CompositeElement, Node, Orientation, Vector
 from structures.FEM.solver import FEMSolver
+from structures.panel.utils import laminate_builder
 
 
-def test_integration_laminate_one_element_inplane_extension():
-    # Build a symmetric quasi-isotropic laminate (T700 data) and get ABD and equivalent properties
+def test_integration_laminate_one_element_inplane_extension() -> None:
+    """Build symmetric quasi-isotropic laminate (T700 data), get ABD properties."""
     laminate = laminate_builder(
         [0, 90, 45, -45], symmetry=True, copycenter=True, multiplicity=1, type="T700"
     )

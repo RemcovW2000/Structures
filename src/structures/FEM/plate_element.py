@@ -1,12 +1,6 @@
+from typing import Optional
+
 import numpy as np
-from typing import Optional, Tuple
-
-
-class Vector:
-    def __init__(self, x: float, y: float, z: float):
-        self.x = x
-        self.y = y
-        self.z = z
 
 
 class Node:
@@ -106,7 +100,7 @@ def plate4_mindlin_stiffness(
     nodes: list[Node],
     orientation: Orientation,
     As: Optional[np.ndarray] = None,
-) -> Tuple[np.ndarray, Orientation, np.ndarray]:
+) -> tuple[np.ndarray, Orientation, np.ndarray]:
     """
     Build the 4-node Mindlin-Reissner plate/shell element stiffness matrix from ABD and node coords.
 
@@ -153,7 +147,7 @@ def plate4_mindlin_stiffness(
     ndof = nnode * dof_per_node
     Ke = np.zeros((ndof, ndof), dtype=dtype)
 
-    def shape_Q4(xi, eta):
+    def shape_Q4(xi: float, eta: float) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         N = np.array(
             [
                 0.25 * (1 - xi) * (1 - eta),
@@ -291,7 +285,7 @@ if __name__ == "__main__":
     ndof = len(all_nodes) * dof_per_node
     K_global = np.zeros((ndof, ndof), dtype=ABD.dtype)
 
-    def dof_indices(conn: Tuple[int, int, int, int]) -> np.ndarray:
+    def dof_indices(conn: tuple[int, int, int, int]) -> np.ndarray:
         idx = []
         for n_id in conn:
             base = n_id * dof_per_node

@@ -1,46 +1,52 @@
 [build-system]
-requires = ["setuptools>=69", "wheel"]
+requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "structures"
-version = "0.1.0"
-description = "A python package designed for structural analysis"
+dynamic = ["version"]
+description = "Finite Element Analysis library for structural engineering"
 readme = "README.md"
 requires-python = ">=3.9"
-authors = [
-  { name = "Your Name", email = "you@example.com" }
-]
-license = { text = "UNLICENSED" }
-keywords = ["structures", "scaffold"]
-classifiers = [
-  "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3 :: Only",
-  "License :: Other/Proprietary License",
-  "Operating System :: OS Independent",
+dependencies = [
+    "numpy",
+    "matplotlib",
 ]
 
-# Runtime deps (add as needed)
-dependencies = []
+[tool.setuptools_scm]
 
-[project.optional-dependencies]
-# Development tools
-dev = [
-  "pytest>=7",
-  "pytest-cov>=4",
-  "black>=24.0",
-  "ruff>=0.5",
-  "pre-commit>=3.6",
-]
-# Documentation stack
-docs = [
-  "mkdocs>=1.6",
-  "mkdocs-material>=9.5",
-  "mkdocstrings[python]>=0.25",
-  "mkdocs-gen-files>=0.5",
-  "mkdocs-section-index>=0.3",
-  "mkdocs-literate-nav>=0.6",
-  "griffe>=0.44",
+[tool.black]
+line-length = 88
+target-version = ['py39']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+known_first_party = ["structures"]
+
+[tool.flake8]
+max-line-length = 88
+extend-ignore = ["E203", "W503", "D100"]
+per-file-ignores = [
+    "__init__.py:F401",
+    "tests/*:D"
 ]
 
 [project.urls]
@@ -57,16 +63,12 @@ where = ["src"]
 [tool.setuptools.package-data]
 structures = ["py.typed"]
 
-[tool.black]
-line-length = 100
-target-version = ["py39", "py310", "py311", "py312"]
-
 [tool.ruff]
 line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "PL"]
-ignore = ["E501"]  # Let black handle line length
+ignore = ["E501", "PLR0913", "PLR0915", "UP007"]  # Let black handle line length, disable too many args/statements, disable union syntax modernization
 
 [tool.ruff.lint.isort]
 known-first-party = ["structures"]

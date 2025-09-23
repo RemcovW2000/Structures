@@ -1,10 +1,10 @@
 import numpy as np
 
-from structures.FEM.plate_element import Node, Vector, Orientation, CompositeElement
-from structures.FEM.solver import FEMSolver, DofName
+from structures.FEM.plate_element import CompositeElement, Node, Orientation, Vector
+from structures.FEM.solver import DofName, FEMSolver
 
 
-def test_one_element_uniaxial_membrane_extension():
+def test_one_element_uniaxial_membrane_extension() -> None:
     # Analytical setup: unit square (0<=x,y<=1), thickness t, Ex along x, nu=0
     E = 1000.0
     t = 1.0

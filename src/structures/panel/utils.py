@@ -1,18 +1,20 @@
 import copy
 
 from structures import Lamina
-from structures.panel.laminate import Laminate
 from structures.panel.data import material_properties as mp
+from structures.panel.laminate import Laminate
 
 
-def laminate_builder(angleslist, symmetry, copycenter, multiplicity, type=None):
+def laminate_builder(
+    angleslist: list[int], symmetry: bool, copycenter: bool, multiplicity: int, type: str = None
+) -> Laminate:
     if symmetry:
         if copycenter is True:
             angleslist = angleslist + angleslist[-1::-1]
         elif copycenter is False:
             angleslist = angleslist + angleslist[-2::-1]
     elif not symmetry:
-        angleslist = angleslist
+        pass
     angleslist = angleslist * multiplicity
 
     # Define standard lamina:

@@ -1,24 +1,22 @@
 # External packages
-import copy
 
 import numpy as np
 
 # Local imports - use relative imports within the package
 from structures.panel.base_components.lamina import Lamina
+
 from ..structural_entity import StructuralEntity
 
 
 class Laminate(StructuralEntity):
-    def __init__(self, laminas, Loads=None, Strains=None):
+    def __init__(
+        self, laminas: list[Lamina], Loads: list[float] = None, Strains: list[float] = None
+    ):
         super().__init__("laminate")
         self.laminas: list[Lamina] = laminas
         self.Loads: list[float] = Loads
+        self.Strains: list[float] = Strains
         self.sandwich: bool = False
-
-        # The laminate also has a failure state, which is a list with the failure state
-        # of each lamina:
-        self.progressive_damage_analysis: bool = False
-        self.failure_state = np.zeros(len(self.laminas))
 
         # We calculate the thickness and find layer start and end height:
         h = 0
@@ -80,11 +78,7 @@ class Laminate(StructuralEntity):
         # Save ABD matrix
         self.ABD_matrix = np.block([[A_matrix, B_matrix], [B_matrix, D_matrix]])
 
-        # We try the inversion but inversion is not so stable so we use an exception:
-        try:
-            self.ABD_matrix_inverse = np.linalg.inv(self.ABD_matrix)
-        except np.linalg.LinAlgError:
-            raise ValueError("ABD matrix inversion failed.")
+        self.ABD_matrix_inverse = np.linalg.inv(self.ABD_matrix)
 
     def calculate_weight_per_A(self) -> float:
         """Calculates weight per unit area of laminate."""
@@ -201,7 +195,7 @@ class Laminate(StructuralEntity):
         # Initializing an array to save the failure factors:
         failure_indicators = []
 
-        for count, lamina in enumerate(self.laminas):
+        for lamina in self.laminas:
             # Now run for the lamina, the failure analysis
             results = lamina.failure_analysis()
             # set the correct index of the failure_state:
@@ -224,145 +218,12 @@ class Laminate(StructuralEntity):
         """Calculate buckling scaling factor."""
         return n_crit
 
-    def failure_analysis_pda(self):
-        # We need to make sure the lamina have stresses:
-        self.stress_analysis()
-
-        # We make an array to track the failed lamina (which one failed):
-        failedlamina = []
-
-        # Initializing an array to save the failure factors:
-        FailureFactors = []
-
-        # We want to potentially save the lamina which failed, not useful in this
-        # assignment though.
-        for count, lamina in enumerate(self.laminas):
-            # Now run for the lamina, the failure analysis
-            results = lamina.failure_analysis(lamina.Sigma)
-
-            # If the failure of the lamina is 1 (for IFF) or 2 (for FF), the lamina has
-            # failed
-            if results[0] >= 1:
-                failedlamina.append(count)
-
-            # set the correct index of the failure_state:
-            self.failure_state[count] = lamina.failure_state
-            FailureFactors.append(max(results[1], results[2]))
-
-        # We save the maximum failure factor in any of the lamina, to calculate the next loadstep:
-        maxfailurefactor = np.max(FailureFactors)
-        return self.failure_state, failedlamina, maxfailurefactor
-
     def Ncrit(self) -> float:
         maxfailurefactor = self.failure_analysis()
         Ncrit = self.Loads / maxfailurefactor
         return Ncrit
 
-    def progressive_damage_analysis(self, loadingratio, loadincrement):
-        # Normalize the loading ratio
-        normalized_loadingratio = loadingratio / np.max(np.abs(loadingratio))
-
-        # Last ply failure false at first:
-        LPF = False
-
-        # Initialize the failure loads and strains as empty lists
-        FailureLoadsList = []
-        FailureStrainsList = []
-
-        n = 1
-        while not LPF:
-            # Calculate the load for this iteration
-            Loads = normalized_loadingratio * n * loadincrement
-
-            # Set the load attribute
-            self.Loads = Loads
-
-            # Run the failure analysis for the laminate with this new load
-            failure_state, failedlamina, maxfailurefactor = self.failure_analysis_pda()
-
-            # If a lamina has failed, save these loads and strains
-            if failedlamina:
-                FailureLoadsList.append(Loads)
-                FailureStrainsList.append(self.get_strains())
-
-            # Check whether full failure of all lamina has been achieved
-            if np.all(failure_state >= 1):
-                LPF = True
-
-            if maxfailurefactor < 0.998:
-                # The load should be increased based on the max failure factor observed:
-                nnew = n * (1 / maxfailurefactor) * 0.999 + 1
-                n = nnew
-            else:
-                n += 1
-
-        # Convert lists to NumPy arrays for final output
-        # If lists are empty, initialize arrays as (n,0) to avoid shape mismatch
-        if FailureLoadsList:
-            FailureLoads = np.hstack(FailureLoadsList)
-            FailureStrains = np.hstack(FailureStrainsList)
-        else:
-            FailureLoads = np.empty((6, 0))
-            FailureStrains = np.empty((6, 0))
-
-        return FailureLoads, FailureStrains
-
-    def produce_failure_envelope(self, loadincrement):
-        # We want to plot the stress and strain failure loads:
-        angles = np.linspace(1, 360, 1440)
-        E22vsE12FPF = []
-        E22vsE12LPF = []
-
-        S22vsS12FPF = []
-        S22vsS12LPF = []
-
-        FailureStrainsList = []
-
-        for angle in angles:
-            loadingratio = np.array(
-                [
-                    [0],
-                    [np.cos(np.deg2rad(angle))],
-                    [np.sin(np.deg2rad(angle))],
-                    [0],
-                    [0],
-                    [0],
-                ]
-            )
-
-            FailureLoads, FailureStrains = self.progressive_damage_analysis(
-                loadingratio, loadincrement
-            )
-
-            # We save the individual points as tuples: This is for one load case:
-            E22vsE12 = tuple(zip(FailureStrains[1], FailureStrains[2]))
-            FailureStrainsList.append(E22vsE12)
-
-            # now we save the FPF and LPF:
-            E22vsE12FPF.append(E22vsE12[0])
-            E22vsE12LPF.append(E22vsE12[-1])
-
-            S22vsS12 = tuple(zip(FailureLoads[1], FailureLoads[2]))
-            # print('S22 vs S12 failure loads:', S22vsS12, 'at angle:', angle)
-            # Here we again take the FPF and LPF
-            S22vsS12FPF.append(S22vsS12[0])
-            S22vsS12LPF.append(S22vsS12[-1])
-            self.reset_failure_state()
-        return E22vsE12FPF, E22vsE12LPF, S22vsS12FPF, S22vsS12LPF, FailureStrainsList
-
-    def reset_failure_state(self):
-        # First we reset the failure state vector in the laminate:
-        self.failure_state = np.zeros(len(self.laminas))
-
-        # Then we also reset these in the lamina
-        for lamina in self.laminas:
-            lamina.failure_state = 0
-
-        # Lastly, we recalculate the ABD matrix:
-        self.calculate_ABD()
-        return
-
-    def calculate_core_ABD(self, corethickness):
+    def calculate_core_ABD(self, corethickness: float) -> np.ndarray:
         # Initalizing the A, B and D matrix:
         A_matrix = np.zeros((3, 3))
         B_matrix = np.zeros((3, 3))
@@ -392,7 +253,7 @@ class Laminate(StructuralEntity):
         return CoreABD
 
     # Function to create the rotation matrix
-    def rotation_matrix(self, theta):
+    def rotation_matrix(self, theta: float) -> np.ndarray:
         c = np.cos(theta)
         s = np.sin(theta)
         return np.array(
@@ -404,8 +265,7 @@ class Laminate(StructuralEntity):
         )
 
     # Function to transform the ABD matrix
-    def rotated_ABD(self, theta):
-        ABD = self.ABD_matrix
+    def rotated_ABD(self, theta: float) -> np.ndarray:
         T = self.rotation_matrix(theta)
         # Extending T to a 6x6 transformation matrix
         T_ext = np.zeros((6, 6))
