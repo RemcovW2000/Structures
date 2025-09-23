@@ -1,0 +1,24 @@
+def test_laminate_builder() -> None:
+    from structures.panel.data.lamina_props import DEFAULT_MATERIAL
+    from structures.panel.laminate import Laminate
+    from structures.panel.utils import laminate_builder
+
+    angleslist = [0, 45, -45, 90]
+    symmetry = True
+    copycenter = False
+    multiplicity = 2
+
+    laminate = laminate_builder(
+        angleslist=angleslist,
+        symmetry=symmetry,
+        copycenter=copycenter,
+        multiplicity=multiplicity,
+        material_props=DEFAULT_MATERIAL,
+    )
+
+    assert isinstance(laminate, Laminate)
+    assert len(laminate.laminas) == len(angleslist) * 2 * multiplicity - 2
+    assert all(lamina.theta_deg in angleslist + angleslist[-2::-1] for lamina in laminate.laminas)
+    assert all(lamina.t == DEFAULT_MATERIAL.t for lamina in laminate.laminas)
+    assert all(lamina.elastic == DEFAULT_MATERIAL.elastic_properties for lamina in laminate.laminas)
+    assert all(lamina.failure == DEFAULT_MATERIAL.failure_properties for lamina in laminate.laminas)
