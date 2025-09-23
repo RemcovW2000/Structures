@@ -1,52 +1,10 @@
-from dataclasses import dataclass
 from typing import Optional
 
 import numpy as np
 from numpy.typing import NDArray
 
+from structures.panel.data_utils import ElasticProperties, FailureProperties
 from structures.structural_entity import StructuralEntity
-
-
-@dataclass(frozen=True)
-class ElasticProperties:
-    """Orthotropic in-plane elastic properties of a unidirectional lamina.
-
-    Attributes:
-        E1: Modulus along fiber direction 1 (MPa or consistent units).
-        E2: Modulus transverse to fiber direction 2.
-        G12: In-plane shear modulus.
-        v12: Major Poisson's ratio (strain in 2 due to stress in 1).
-    """
-
-    E1: float
-    E2: float
-    G12: float
-    v12: float
-
-
-@dataclass(frozen=True)
-class FailureProperties:
-    """Lamina failure properties for fiber and inter-fiber criteria.
-
-    Attributes:
-        E11f: Fiber-direction modulus used in fiber failure relation (if applicable).
-        v21f: Poisson's ratio 2->1 used in fiber failure adjustment.
-        msf: Material safety/compensation factor (e.g., 1.3 for GFRP, 1.1 for CFRP).
-        R11t: Longitudinal tensile strength.
-        R11c: Longitudinal compressive strength (positive magnitude).
-        Yt: Transverse tensile strength.
-        Yc: Transverse compressive strength (positive magnitude).
-        S: In-plane shear strength.
-    """
-
-    E11f: float
-    v21f: float
-    msf: float
-    R11t: float
-    R11c: float
-    Yt: float
-    Yc: float
-    S: float
 
 
 class Lamina(StructuralEntity):
