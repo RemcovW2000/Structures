@@ -1,12 +1,17 @@
-import copy
+from typing import Optional
 
 from structures import Lamina
-from structures.panel.data import material_properties as mp
+from structures.panel.data.lamina_props import DEFAULT_MATERIAL
+from structures.panel.data_utils import MaterialProperties
 from structures.panel.laminate import Laminate
 
 
 def laminate_builder(
-    angleslist: list[int], symmetry: bool, copycenter: bool, multiplicity: int, type: str = None
+    angleslist: list[int],
+    symmetry: bool,
+    copycenter: bool,
+    multiplicity: int,
+    material_props: Optional[MaterialProperties] = None,
 ) -> Laminate:
     if symmetry:
         if copycenter is True:
@@ -17,26 +22,19 @@ def laminate_builder(
         pass
     angleslist = angleslist * multiplicity
 
-    # Define standard lamina:
-    if type:
-        lamina = Lamina(mp.t, 45, mp.elastic_properties, mp.failure_properties, mp.rho)
-    else:
-        props = mp.CF[type]
-        lamina = Lamina(
-            props["t"],
-            0,
-            props["elastic_properties"],
-            props["failure_properties"],
-            props["rho"],
-        )
-    laminas = []
+    if not material_props:
+        material_props = DEFAULT_MATERIAL
 
-    # populate laminas list:
+    laminas = []
     for angle in angleslist:
-        newlamina = copy.deepcopy(lamina)
-        newlamina.theta_ = angle
-        newlamina._compute_q_s()
-        laminas.append(newlamina)
+        laminas.append(
+            Lamina(
+                theta_deg=angle,
+                t=material_props.t,
+                elastic=material_props.elastic_properties,
+                failure=material_props.failure_properties,
+            )
+        )
 
     laminate = Laminate(laminas)
     return laminate
