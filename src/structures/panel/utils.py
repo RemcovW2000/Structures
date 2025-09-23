@@ -7,7 +7,7 @@ from structures.panel.laminate import Laminate
 
 
 def laminate_builder(
-    angleslist: list[int],
+    angleslist: list[float],
     symmetry: bool,
     copycenter: bool,
     multiplicity: int,
