@@ -105,7 +105,7 @@ class Laminate(StructuralEntity):
             )
             lamina.Epsilon = np.array([max1, max2, max3])
 
-    def calculate_equivalent_properties(self) -> tuple[list[float], list[float]]:
+    def calculate_equivalent_properties(self) -> list[float]:
         """Calculate equivalent engineering properties of the laminate."""
         self.Ex = (self.A_matrix[0, 0] * self.A_matrix[1, 1] - self.A_matrix[0, 1] ** 2) / (
             self.h * self.A_matrix[1, 1]
@@ -118,89 +118,64 @@ class Laminate(StructuralEntity):
         self.vyx = self.A_matrix[0, 1] / self.A_matrix[0, 0]
 
         self.Gxy = self.A_matrix[2, 2] / self.h
+        return [self.Ex, self.Ey, self.vxy, self.vyx, self.Gxy]
 
+    def calculate_equivalent_properties_bending(self) -> list[float]:
         D = np.linalg.inv(self.D_matrix)
-
         E1b = 12 / (self.h**3 * D[0, 0])
         E2b = 12 / (self.h**3 * D[1, 1])
         G12b = 12 / (self.h**3 * D[2, 2])
         v12b = -D[0, 1] / D[1, 1]
         v21b = -D[0, 1] / D[0, 0]
-        return [self.Ex, self.Ey, self.vxy, self.vyx, self.Gxy], [
-            E1b,
-            E2b,
-            G12b,
-            v12b,
-            v21b,
-        ]
+        return [E1b, E2b, G12b, v12b, v21b]
 
     def stress_analysis(self) -> np.ndarray:
         """Carry out stress analysis for all lamina in laminate."""
-        # make sure the lamina strains are calculated:
         self.calculate_lamina_strains()
 
-        # we need a method to store the stresses so we can check the stresses
         shape = (3, len(self.laminas))
         stresses = np.zeros(shape)
-        for count, i in enumerate(self.laminas):
-            # calling of the i.stress_analysis() method should also save the stresses as
-            # attributes
-            stressesnonflat = i.stress_analysis()
+        for i, lamina in enumerate(self.laminas):
+            stressesnonflat = lamina.stress_analysis()
             stressesflat = stressesnonflat.flatten()
-            stresses[:, count] = stressesflat
+            stresses[:, i] = stressesflat
         return stresses
 
-    # carry out failure analysis for all lamina in laminate
     def failure_analysis(self) -> float:
         super().failure_analysis()
-        # We need to make sure the lamina have stresses:
         self.stress_analysis()
 
-        # Initializing an array to save the failure factors:
         failure_indicators = []
 
         for lamina in self.laminas:
-            # Now run for the lamina, the failure analysis
-            results = lamina.failure_analysis()
-            # set the correct index of the failure_state:
-            failure_indicators.append(max(results[1], results[2]))
+            failure_indicators.append(lamina.failure_analysis())
 
-        # We save the maximum failure factor in any of the lamina, to calculate the
-        # next loadstep:
         max_failure_indicator = max(failure_indicators)
-
         failure_modes = [["first_ply_failure", max_failure_indicator]]
         self.finalize_failure_analysis(failure_modes)
-
-        return max(
-            value
-            for key, value in self.failure_indicators.items()
-            if isinstance(value, (int, float))
-        )
+        return max_failure_indicator
 
     def buckling_scaling_factor(self, n_crit: float) -> float:
         """Calculate buckling scaling factor."""
         return n_crit
 
-    def Ncrit(self) -> float:
+    def n_crit(self) -> float:
+        """Calculate critical load intensity given current loading direction."""
         maxfailurefactor = self.failure_analysis()
-        Ncrit = self.Loads / maxfailurefactor
-        return Ncrit
+        n_crit = self.Loads / maxfailurefactor
+        return n_crit
 
-    def calculate_core_ABD(self, corethickness: float) -> np.ndarray:
-        # Initalizing the A, B and D matrix:
+    def calculate_abd_for_sandwich(self, corethickness: float) -> np.ndarray:
+        """Calculate the ABD matrix of the laminate given an extra core thickness."""
         A_matrix = np.zeros((3, 3))
         B_matrix = np.zeros((3, 3))
         D_matrix = np.zeros((3, 3))
 
-        # Per lamina we calculate the three matrices
         for lamina in self.laminas:
-            # First we recalculate the Q and S matrix of the lamina:
-            lamina.calculate_QS()
-
             # Calculate the difference (Z_k - Z_k-1)
             z1 = lamina.z1 + corethickness / 2 + self.h / 2
             z0 = lamina.z0 + corethickness / 2 + self.h / 2
+
             delta_Z = z1 - z0
             # Update A_ij by adding the product of Q(k) and the difference in Z
             A_matrix += lamina.Qbar * delta_Z
@@ -212,34 +187,21 @@ class Laminate(StructuralEntity):
             delta_Z_cubed = z1**3 - z0**3
             D_matrix += 1 / 3 * (lamina.Qbar * delta_Z_cubed)
 
-        # Save ABD matrix
         CoreABD = np.block([[A_matrix, B_matrix], [B_matrix, D_matrix]])
         return CoreABD
 
-    @staticmethod
-    def rotation_matrix(theta: float) -> np.ndarray:
-        c = np.cos(theta)
-        s = np.sin(theta)
-        return np.array(
-            [
-                [c**2, s**2, 2 * c * s],
-                [s**2, c**2, -2 * c * s],
-                [-c * s, c * s, c**2 - s**2],
-            ]
-        )
-
-    # Function to transform the ABD matrix
     def rotated_ABD(self, theta: float) -> np.ndarray:
+        """Calculate the ABD matrix of the laminate rotated by an angle theta."""
         T = self.rotation_matrix(theta)
         # Extending T to a 6x6 transformation matrix
         T_ext = np.zeros((6, 6))
         T_ext[:3, :3] = T
         T_ext[3:, 3:] = T
 
-        # Transform the ABD matrix
         ABD_transformed = T_ext @ self.ABD_matrix @ T_ext.T
         return ABD_transformed
 
+    # Function to transform the ABD matrix
     def principal_stresses_and_directions(self) -> tuple[np.ndarray, np.ndarray]:
         """
         Calculate the principal stresses and their corresponding directions
@@ -270,3 +232,15 @@ class Laminate(StructuralEntity):
         principal_directions = principal_directions[:, idx]
 
         return principal_loadintensities, principal_directions
+
+    @staticmethod
+    def rotation_matrix(theta: float) -> np.ndarray:
+        c = np.cos(theta)
+        s = np.sin(theta)
+        return np.array(
+            [
+                [c**2, s**2, 2 * c * s],
+                [s**2, c**2, -2 * c * s],
+                [-c * s, c * s, c**2 - s**2],
+            ]
+        )
