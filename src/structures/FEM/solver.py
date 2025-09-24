@@ -8,6 +8,7 @@ from typing import Optional
 import numpy as np
 
 from structures.FEM.mesh import Mesh
+from structures.panel.data.lamina_props import Christos
 
 # Simple node/element-based FEM solver for plate/shell elements -----------------
 
@@ -260,7 +261,7 @@ if __name__ == "__main__":
 
     # Build symmetric quasi-isotropic laminate and compute ABD
     laminate = laminate_builder(
-        [0, 0, 0], symmetry=True, copycenter=True, multiplicity=1, type="T700"
+        [0, 0, 0], symmetry=True, copycenter=True, multiplicity=1, material_props=Christos
     )
     ABD = laminate.ABD_matrix
 
@@ -297,7 +298,7 @@ if __name__ == "__main__":
 
     # Loads:
     # - Apply downward load to w-DOF at nodes 1 and 2
-    solver.load(1, DofName.W, -1.0)
+    solver.load(3, DofName.W, -1.0)
     solver.load(2, DofName.W, -1.0)
 
     # Solve
@@ -307,4 +308,4 @@ if __name__ == "__main__":
     XYZ = np.array([[n.x, n.y, n.z] for n in nodes])
     # Build nodal deformation map and plot
     solver.build_nodal_deformations()
-    solver.plot_deformed(XYZ, scale=1000.0)
+    solver.plot_deformed(XYZ, scale=10.0)
