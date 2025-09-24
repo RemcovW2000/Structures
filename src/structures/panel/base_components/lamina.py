@@ -15,7 +15,7 @@ class Lamina(StructuralEntity):
 
     Attributes:
         t: Ply thickness.
-        theta_deg: Ply orientation angle in degrees (0 aligns material-1 with x-axis).
+        theta: Ply orientation angle in degrees (0 aligns material-1 with x-axis).
         elastic: ElasticProperties for this ply.
         failure: FailureProperties for this ply.
         rho: Density (mass per volume) in consistent units.
@@ -28,9 +28,9 @@ class Lamina(StructuralEntity):
     def __init__(
         self,
         t: float,
-        theta_deg: float,
-        elastic: ElasticProperties,
-        failure: FailureProperties,
+        theta: float,
+        elastic_properties: ElasticProperties,
+        failure_properties: FailureProperties,
         rho: float = 0.0,
         z0: Optional[float] = None,
         z1: Optional[float] = None,
@@ -41,9 +41,11 @@ class Lamina(StructuralEntity):
 
         # Geometric and material properties
         self.t: float = t
-        self.theta_deg: float = theta_deg
-        self.elastic: ElasticProperties = elastic
-        self.failure: FailureProperties = failure
+
+        #: Orientation angle in degrees
+        self.theta: float = theta
+        self.elastic: ElasticProperties = elastic_properties
+        self.failure: FailureProperties = failure_properties
         self.rho: float = rho
 
         # Ply z coordinates (to be set by Laminate)
@@ -56,10 +58,10 @@ class Lamina(StructuralEntity):
         self.max_stress: bool = False  # Use max-stress instead of Puck when True
 
         # Cached elastic and compliance/stiffness matrices (populated by helpers)
-        self.E1: float = elastic.E1
-        self.E2: float = elastic.E2
-        self.G12: float = elastic.G12
-        self.v12: float = elastic.v12
+        self.E1: float = elastic_properties.E1
+        self.E2: float = elastic_properties.E2
+        self.G12: float = elastic_properties.G12
+        self.v12: float = elastic_properties.v12
         self.v21 = self.v12 * self.E2 / self.E1
         self.Qbar: NDArray[np.float64] = np.empty((3, 3), dtype=float)
         self.Sbar: NDArray[np.float64] = np.empty((3, 3), dtype=float)
@@ -67,8 +69,8 @@ class Lamina(StructuralEntity):
         self._compute_q_s()
 
     def _compute_q_s(self) -> None:
-        m = np.cos(np.deg2rad(self.theta_deg))
-        n = np.sin(np.deg2rad(self.theta_deg))
+        m = np.cos(np.deg2rad(self.theta))
+        n = np.sin(np.deg2rad(self.theta))
 
         denom = 1.0 - self.v12 * self.v21
         if denom == 0:
@@ -108,7 +110,7 @@ class Lamina(StructuralEntity):
         return self.sigma
 
     # --- Failure criteria -------------------------------------------------
-    def failure_analysis(self) -> tuple[int, float, float]:
+    def failure_analysis(self) -> float:
         """Calculate failure indicators for inter-fiber and fiber failure.
 
         Returns:
@@ -118,8 +120,8 @@ class Lamina(StructuralEntity):
             raise ValueError(
                 "sigma (stress state) not set; run stress_analysis first or set manually"
             )
-        m = np.cos(np.deg2rad(self.theta_deg))
-        n = np.sin(np.deg2rad(self.theta_deg))
+        m = np.cos(np.deg2rad(self.theta))
+        n = np.sin(np.deg2rad(self.theta))
         alpha = np.array(
             [[m * m, n * n, 2 * m * n], [n * n, m * m, -2 * m * n], [-m * n, m * n, m * m - n * n]],
             dtype=float,
@@ -135,15 +137,7 @@ class Lamina(StructuralEntity):
 
         failure_modes = [["inter_fiber_failure", float(iff)], ["fiber_failure", float(ff)]]
         self.finalize_failure_analysis(failure_modes)
-
-        if iff >= 1:
-            failure = 1
-        elif ff >= 1:
-            failure = 2
-        else:
-            failure = 0
-
-        return failure, float(iff), float(ff)
+        return max(float(iff), float(ff))
 
     def _iff_puck(self, sigma: NDArray[np.float64]) -> float:
         """Inter-fiber failure (simplified Puck-like form).
@@ -214,7 +208,7 @@ class Lamina(StructuralEntity):
 if __name__ == "__main__":
     lamina = Lamina(
         t=0.125,
-        theta_deg=45.0,
+        theta=45.0,
         elastic=ElasticProperties(E1=135_000, E2=10_000, G12=5_000, v12=0.3),
         failure=FailureProperties(
             E11f=230_000, v21f=0.5, msf=1.1, R11t=1500, R11c=1200, Yt=40, Yc=200, S=70

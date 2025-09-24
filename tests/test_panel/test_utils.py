@@ -19,7 +19,7 @@ def test_laminate_builder() -> None:
 
     assert isinstance(laminate, Laminate)
     assert len(laminate.laminas) == len(angleslist) * 2 * multiplicity - 2
-    assert all(lamina.theta_deg in angleslist + angleslist[-2::-1] for lamina in laminate.laminas)
+    assert all(lamina.theta in angleslist + angleslist[-2::-1] for lamina in laminate.laminas)
     assert all(lamina.t == DEFAULT_MATERIAL.t for lamina in laminate.laminas)
     assert all(lamina.elastic == DEFAULT_MATERIAL.elastic_properties for lamina in laminate.laminas)
     assert all(lamina.failure == DEFAULT_MATERIAL.failure_properties for lamina in laminate.laminas)

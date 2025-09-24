@@ -36,11 +36,11 @@ class StructuralEntity(ABC):
         self.name = name
 
     @property
-    def child_objects(self):
+    def child_objects(self) -> list["StructuralEntity"]:
         return []
 
     @abstractmethod
-    def failure_analysis(self):
+    def failure_analysis(self) -> float:
         """
         Perform failure analysis on the structural entity, call method on all children.
 
@@ -48,15 +48,17 @@ class StructuralEntity(ABC):
 
         Sets the correct failure indicator for the right failure mode(s)
 
-        :return: None
+        :return: Maximum failure indicator across all failure modes and child objects.
         """
         raise NotImplementedError("Subclasses must implement this method")
 
-    def set_failure_indicator(self, failure_mode: failure_mode_options, failure_indicator: float):
+    def set_failure_indicator(
+        self, failure_mode: failure_mode_options, failure_indicator: float
+    ) -> None:
         # failure indicator is initialised as an empty dictionary
         self.failure_indicators[failure_mode] = failure_indicator
 
-    def finalize_failure_analysis(self, failure_modes: list):
+    def finalize_failure_analysis(self, failure_modes: list) -> float:
         """
         Finalizes the failure analysis by setting the failure indicators for the class.
 
@@ -97,7 +99,7 @@ class StructuralEntity(ABC):
             if isinstance(value, (int, float))
         )
 
-    def get_hierarchy(self, return_full: bool = False):
+    def get_hierarchy(self, return_full: bool = False) -> dict | None:
         """
         Returns the lower hierarchy of child objects
         :return:

@@ -14,7 +14,7 @@ class Laminate(StructuralEntity):
         self.Loads: list[float] = Loads
         self.Strains: list[float] = Strains
         self.sandwich: bool = False
-        self.stackingsequence: list[float] = [lamina.theta_deg for lamina in laminas]
+        self.stackingsequence: list[float] = [lamina.theta for lamina in laminas]
 
         self.assign_lamina_height()
         self.calculate_ABD()

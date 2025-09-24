@@ -29,8 +29,8 @@ def laminate_builder(
     for angle in angleslist:
         laminas.append(
             Lamina(
-                theta_deg=angle,
                 t=material_props.t,
+                theta=angle,
                 elastic=material_props.elastic_properties,
                 failure=material_props.failure_properties,
             )
