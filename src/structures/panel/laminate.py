@@ -152,7 +152,7 @@ class Laminate(StructuralEntity):
 
         max_failure_indicator = max(failure_indicators)
         failure_modes = [["first_ply_failure", max_failure_indicator]]
-        self.finalize_failure_analysis(failure_modes)
+        self.set_failure_indicators(failure_modes)
         return max_failure_indicator
 
     def buckling_scaling_factor(self, n_crit: float) -> float:

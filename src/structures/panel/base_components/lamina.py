@@ -136,7 +136,7 @@ class Lamina(StructuralEntity):
             ff = self._ff_puck(sigma123)
 
         failure_modes = [["inter_fiber_failure", float(iff)], ["fiber_failure", float(ff)]]
-        self.finalize_failure_analysis(failure_modes)
+        self.set_failure_indicators(failure_modes)
         return max(float(iff), float(ff))
 
     def _iff_puck(self, sigma: NDArray[np.float64]) -> float:
