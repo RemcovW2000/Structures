@@ -29,5 +29,5 @@ repos:
           - flake8-annotations>=3.0.0
         args:
           - --select=ANN
-          - --ignore=ANN101,ANN102,ANN204
+          - --ignore=ANN101,ANN102,ANN204, ANN401
           - --max-line-length=88
