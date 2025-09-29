@@ -46,13 +46,43 @@ class StructuralEntity(ABC):
     - failure_analysis method
     """
 
+    def __init_subclass__(cls, **kwargs: Any):
+        super().__init_subclass__(**kwargs)
+        # ensure subclass provides its own implementation (not inherited)
+        if "failure_analysis" not in cls.__dict__:
+            raise TypeError(
+                "Subclasses must implement `failure_analysis` and decorate it with `@failure_analysis_decorator`"
+            )
+
+        impl = cls.__dict__["failure_analysis"]
+        # unwrap descriptors
+        if isinstance(impl, (classmethod, staticmethod)):
+            impl = impl.__func__
+
+        if not getattr(impl, "_is_failure_analysis", False):
+            raise TypeError(
+                "`failure_analysis` must be decorated with `@failure_analysis_decorator`"
+            )
+
     def __init__(self, name: name_options):
-        self.failure_indicators = {}
-        self.name = name
+        self.failure_indicators: dict[str, float] = {}
+        self.name: str = name
 
     @property
     def child_objects(self) -> list["StructuralEntity"]:
         return []
+
+    @property
+    def fi(self) -> float:
+        r"""
+        Read\-only failure indicator. Runs `failure_analysis()` to update
+        `failure_indicators` and returns the current maximum indicator.
+        """
+        return self.failure_analysis()
+
+    @fi.setter
+    def fi(self, value: float) -> None:
+        raise AttributeError("`fi` is read-only")
 
     @abstractmethod
     def failure_analysis(self) -> float:
