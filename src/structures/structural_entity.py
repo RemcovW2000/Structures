@@ -1,6 +1,7 @@
 import copy
 from abc import ABC, abstractmethod
-from typing import Literal
+from functools import wraps
+from typing import Any, Callable, Literal
 
 failure_mode_options = Literal[
     "fiber_failure",
@@ -20,15 +21,26 @@ name_options = Literal[
     "wing",
 ]
 
-failure_state_options = Literal[True, False]
+FailureMode = tuple[str, float]
+
+
+def failure_analysis(func: Callable[..., list[FailureMode]]) -> Callable[..., float]:
+    @wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> float:
+        self = args[0]
+        failure_modes = func(*args, **kwargs)
+        return self.set_failure_indicators(failure_modes)
+
+    return wrapper
 
 
 class StructuralEntity(ABC):
     """
     Abstract base class for structural entities.
 
-    Has attribute failure_indicators, a nested dictionary that stores the entity's own
-     failure indicators and those of its children.
+    Has attribute failure_indicators, a dictionary of failure modes and their indicators
+    showing how close the entity is to failure in that mode. Also shows max failure
+    indicator of all child objects.
 
     Enforces implementation of:
     - failure_analysis method
@@ -49,19 +61,13 @@ class StructuralEntity(ABC):
 
         Is an augmentor class -> influences the state of the class
 
-        Sets the correct failure indicator for the right failure mode(s)
-
         :return: Maximum failure indicator across all failure modes and child objects.
         """
         raise NotImplementedError("Subclasses must implement this method")
 
     def set_failure_indicators(self, failure_modes: list) -> float:
         """
-        Finalizes the failure analysis by setting the failure indicators for the class.
-
-        Parameters:
-        first_ply_key (str): The key to use for the first ply failure indicator.
-        child_key (str): The key to use for the child failure indicator.
+        Sets the failure_indicators attribute based on failure modes and child objects.
         """
         failure_indicators = {}
         if failure_modes:
@@ -73,18 +79,11 @@ class StructuralEntity(ABC):
         if self.child_objects:
             child_max_indicator = 0
             for child in self.child_objects:
-                for key, value in child.failure_indicators.items():
-                    if value > child_max_indicator:
-                        child_max_indicator = value
-                        child_max_key = key
+                max_indicator = max([v for v in child.failure_indicators.values()])
+                if max_indicator > child_max_indicator:
+                    child_max_indicator = max_indicator
 
-            if child_max_key.startswith("child_"):
-                child_key = child_max_key
-            else:
-                child_key = "child_"
-                child_key += child_max_key
-
-            failure_indicators[child_key] = child_max_indicator
+            failure_indicators["child_max_indicator"] = child_max_indicator
         self.failure_indicators = failure_indicators
         return max(value for value in self.failure_indicators.values())
 
