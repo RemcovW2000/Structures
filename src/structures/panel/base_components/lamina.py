@@ -1,9 +1,11 @@
+import math
 from typing import Optional
 
 import numpy as np
 from numpy.typing import NDArray
 
 from structures.panel.data_utils import ElasticProperties, FailureProperties
+from structures.panel.math_utils import rotation_matrix
 from structures.structural_entity import FailureMode, StructuralEntity, failure_analysis
 
 
@@ -20,8 +22,8 @@ class Lamina(StructuralEntity):
         failure: FailureProperties for this ply.
         rho: Density (mass per volume) in consistent units.
         z0, z1: Ply z-coordinates (assigned by laminate), if applicable.
-        epsilon: Current strain vector in global coordinates (shape (3, 1) or (3,)).
-        sigma: Current stress vector in global coordinates (shape (3, 1) or (3,)).
+        strains: Current strain vector in global coordinates (shape (3, 1) or (3,)).
+        loads: Current stress vector in global coordinates (shape (3, 1) or (3,)).
         failure_state: 0 = intact, 1 = inter-fiber failure, 2 = fiber failure.
     """
 
@@ -34,8 +36,8 @@ class Lamina(StructuralEntity):
         rho: float = 0.0,
         z0: Optional[float] = None,
         z1: Optional[float] = None,
-        sigma: Optional[NDArray[np.float64]] = None,
-        epsilon: Optional[NDArray[np.float64]] = None,
+        loads: Optional[NDArray[np.float64]] = None,
+        strains: Optional[NDArray[np.float64]] = None,
     ) -> None:
         super().__init__()
 
@@ -53,9 +55,9 @@ class Lamina(StructuralEntity):
         self.z1: Optional[float] = z1
 
         # Analysis state
-        self.epsilon: Optional[NDArray[np.float64]] = epsilon
-        self.sigma: Optional[NDArray[np.float64]] = sigma
-        self.max_stress: bool = False  # Use max-stress instead of Puck when True
+        self.loads: Optional[NDArray[np.float64]] = loads
+        self.strains: Optional[NDArray[np.float64]] = strains
+        self.max_stress: bool = False
 
         # Cached elastic and compliance/stiffness matrices (populated by helpers)
         self.E1: float = elastic_properties.E1
@@ -100,11 +102,11 @@ class Lamina(StructuralEntity):
     # --- Analysis ---------------------------------------------------------
     def loads_from_strains(self) -> NDArray[np.float64]:
         """Compute global stress vector from current global strains."""
-        return self.Qbar @ self.epsilon
+        return self.Qbar @ self.strains
 
     def strains_from_loads(self) -> NDArray[np.float64]:
         """Compute global strain vector from current global stresses."""
-        return self.Sbar @ self.sigma
+        return self.Sbar @ self.loads
 
     # --- Failure criteria -------------------------------------------------
     @failure_analysis
@@ -114,17 +116,8 @@ class Lamina(StructuralEntity):
         Returns:
             Tuple of (failure_code, inter_fiber_indicator, fiber_indicator).
         """
-        if self.sigma is None:
-            raise ValueError(
-                "sigma (stress state) not set; run stress_analysis first or set manually"
-            )
-        m = np.cos(np.deg2rad(self.theta))
-        n = np.sin(np.deg2rad(self.theta))
-        alpha = np.array(
-            [[m * m, n * n, 2 * m * n], [n * n, m * m, -2 * m * n], [-m * n, m * n, m * m - n * n]],
-            dtype=float,
-        )
-        sigma123 = alpha @ self.sigma
+        alpha = rotation_matrix(math.radians(self.theta))
+        sigma123 = alpha @ self.loads
 
         if self.max_stress:
             iff = self._iff_max(sigma123)
@@ -206,13 +199,12 @@ if __name__ == "__main__":
     lamina = Lamina(
         t=0.125,
         theta=45.0,
-        elastic=ElasticProperties(E1=135_000, E2=10_000, G12=5_000, v12=0.3),
-        failure=FailureProperties(
+        elastic_properties=ElasticProperties(E1=135_000, E2=10_000, G12=5_000, v12=0.3),
+        failure_properties=FailureProperties(
             E11f=230_000, v21f=0.5, msf=1.1, R11t=1500, R11c=1200, Yt=40, Yc=200, S=70
         ),
         rho=1.6e-6,
     )
-    lamina.epsilon = np.array([1e-4, 2e-4, 0.0])
-    sigma = lamina.loads_from_strains()
-    print("sigma:", sigma.ravel())
+    lamina.strains = np.array([1e-4, 2e-4, 0.0])
+    print(lamina.loads)
     print("mass/area:", lamina.mass_per_unit_area())

@@ -3,6 +3,7 @@ import numpy as np
 from structures.panel.base_components.lamina import Lamina
 
 from ..structural_entity import FailureMode, StructuralEntity, failure_analysis
+from .math_utils import rotation_matrix
 
 
 class Laminate(StructuralEntity):
@@ -191,7 +192,7 @@ class Laminate(StructuralEntity):
 
     def rotated_ABD(self, theta: float) -> np.ndarray:
         """Calculate the ABD matrix of the laminate rotated by an angle theta."""
-        T = self.rotation_matrix(theta)
+        T = rotation_matrix(theta)
         # Extending T to a 6x6 transformation matrix
         T_ext = np.zeros((6, 6))
         T_ext[:3, :3] = T
@@ -231,15 +232,3 @@ class Laminate(StructuralEntity):
         principal_directions = principal_directions[:, idx]
 
         return principal_loadintensities, principal_directions
-
-    @staticmethod
-    def rotation_matrix(theta: float) -> np.ndarray:
-        c = np.cos(theta)
-        s = np.sin(theta)
-        return np.array(
-            [
-                [c**2, s**2, 2 * c * s],
-                [s**2, c**2, -2 * c * s],
-                [-c * s, c * s, c**2 - s**2],
-            ]
-        )
