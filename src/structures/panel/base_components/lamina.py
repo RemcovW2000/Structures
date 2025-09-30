@@ -4,7 +4,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from structures.panel.data_utils import ElasticProperties, FailureProperties
-from structures.structural_entity import StructuralEntity
+from structures.structural_entity import FailureMode, StructuralEntity, failure_analysis
 
 
 class Lamina(StructuralEntity):
@@ -98,19 +98,17 @@ class Lamina(StructuralEntity):
         self.Sbar: NDArray[np.float64] = np.linalg.inv(self.Qbar)
 
     # --- Analysis ---------------------------------------------------------
-    def stress_analysis(self) -> NDArray[np.float64]:
-        """Compute global stress vector from current global strains.
+    def loads_from_strains(self) -> NDArray[np.float64]:
+        """Compute global stress vector from current global strains."""
+        return self.Qbar @ self.epsilon
 
-        Requires self.epsilon to be set (shape (3,) or (3,1)).
-        """
-        if self.epsilon is None:
-            raise ValueError("epsilon (strain state) must be set before stress analysis")
-        eps = self.epsilon.reshape(3, 1) if self.epsilon.ndim == 1 else self.epsilon
-        self.sigma = self.Qbar @ eps
-        return self.sigma
+    def strains_from_loads(self) -> NDArray[np.float64]:
+        """Compute global strain vector from current global stresses."""
+        return self.Sbar @ self.sigma
 
     # --- Failure criteria -------------------------------------------------
-    def failure_analysis(self) -> float:
+    @failure_analysis
+    def failure_analysis(self) -> list[FailureMode]:
         """Calculate failure indicators for inter-fiber and fiber failure.
 
         Returns:
@@ -135,9 +133,8 @@ class Lamina(StructuralEntity):
             iff = self._iff_puck(sigma123)
             ff = self._ff_puck(sigma123)
 
-        failure_modes = [["inter_fiber_failure", float(iff)], ["fiber_failure", float(ff)]]
-        self.set_failure_indicators(failure_modes)
-        return max(float(iff), float(ff))
+        failure_modes = [("inter_fiber_failure", float(iff)), ("fiber_failure", float(ff))]
+        return failure_modes
 
     def _iff_puck(self, sigma: NDArray[np.float64]) -> float:
         """Inter-fiber failure (simplified Puck-like form).
@@ -216,6 +213,6 @@ if __name__ == "__main__":
         rho=1.6e-6,
     )
     lamina.epsilon = np.array([1e-4, 2e-4, 0.0])
-    sigma = lamina.stress_analysis()
+    sigma = lamina.loads_from_strains()
     print("sigma:", sigma.ravel())
     print("mass/area:", lamina.mass_per_unit_area())

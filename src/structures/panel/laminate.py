@@ -2,7 +2,7 @@ import numpy as np
 
 from structures.panel.base_components.lamina import Lamina
 
-from ..structural_entity import StructuralEntity
+from ..structural_entity import FailureMode, StructuralEntity, failure_analysis
 
 
 class Laminate(StructuralEntity):
@@ -75,11 +75,11 @@ class Laminate(StructuralEntity):
         """Calculates weight per unit area of laminate."""
         return sum([lamina.calculate_weight_per_A() for lamina in self.laminas])
 
-    def calculate_strains_from_loads(self) -> np.ndarray:
+    def strains_from_loads(self) -> np.ndarray:
         self.Strains = np.linalg.inv(self.ABD_matrix) @ self.Loads
         return self.Strains
 
-    def calculate_loads_from_strains(self) -> np.ndarray:
+    def loads_from_strains(self) -> np.ndarray:
         self.Loads = self.ABD_matrix @ self.Strains
         return self.Loads
 
@@ -91,7 +91,7 @@ class Laminate(StructuralEntity):
         maximum absolute value. Set this as the lamina strain. This is used
         for failure analysis in the lamina.
         """
-        Strains = self.calculate_strains_from_loads()
+        Strains = self.strains_from_loads()
 
         for lamina in self.laminas:
             max1 = max(
@@ -136,13 +136,13 @@ class Laminate(StructuralEntity):
         shape = (3, len(self.laminas))
         stresses = np.zeros(shape)
         for i, lamina in enumerate(self.laminas):
-            stressesnonflat = lamina.stress_analysis()
+            stressesnonflat = lamina.loads_from_strains()
             stressesflat = stressesnonflat.flatten()
             stresses[:, i] = stressesflat
         return stresses
 
-    def failure_analysis(self) -> float:
-        super().failure_analysis()
+    @failure_analysis
+    def failure_analysis(self) -> list[FailureMode]:
         self.stress_analysis()
 
         failure_indicators = []
@@ -151,9 +151,8 @@ class Laminate(StructuralEntity):
             failure_indicators.append(lamina.failure_analysis())
 
         max_failure_indicator = max(failure_indicators)
-        failure_modes = [["first_ply_failure", max_failure_indicator]]
-        self.set_failure_indicators(failure_modes)
-        return max_failure_indicator
+        failure_modes = [("first_ply_failure", max_failure_indicator)]
+        return failure_modes
 
     def buckling_scaling_factor(self, n_crit: float) -> float:
         """Calculate buckling scaling factor."""
