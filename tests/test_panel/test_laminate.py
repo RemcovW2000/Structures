@@ -72,3 +72,21 @@ def test_engineering_properties(
     assert laminate.Ey == pytest.approx(expected_engineering_properties[1], rel=1e-2)
     assert laminate.Gxy == pytest.approx(expected_engineering_properties[2], rel=1e-2)
     assert laminate.vxy == pytest.approx(expected_engineering_properties[3], rel=1e-2)
+
+
+@pytest.mark.parametrize(
+    "angles_list, expected_strength",
+    [
+        ([0, 0, 0, 0], Christos.failure_properties.R11t),
+        ([90, 90, 90, 90], Christos.failure_properties.Yt),
+    ],
+)
+def test_failure(angles_list: list[float], expected_strength: float) -> None:
+    laminate = laminate_builder([0, 0, 0, 0, 0], False, True, 1, material_props=Christos)
+    laminate.loads = np.array([Christos.failure_properties.R11t, 0, 0, 0, 0, 0])
+    assert laminate.fi == pytest.approx(1.0, rel=1e-5)
+
+    # Test shear:
+    # also tests that failure is recalculated when loads are changed.
+    laminate.loads = np.array([0, 0, Christos.failure_properties.S * 2, 0, 0, 0])
+    assert laminate.fi == pytest.approx(2, rel=1e-5)

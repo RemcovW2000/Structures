@@ -8,12 +8,12 @@ from .math_utils import rotation_matrix
 
 class Laminate(StructuralEntity):
     def __init__(
-        self, laminas: list[Lamina], Loads: list[float] = None, Strains: list[float] = None
+        self, laminas: list[Lamina], loads: list[float] = None, strains: list[float] = None
     ) -> None:
         super().__init__()
         self.laminas: list[Lamina] = laminas
-        self.Loads: list[float] = Loads
-        self.Strains: list[float] = Strains
+        self.loads: list[float] = loads
+        self.Strains: list[float] = strains
         self.sandwich: bool = False
         self.stackingsequence: list[float] = [lamina.theta for lamina in laminas]
 
@@ -77,12 +77,10 @@ class Laminate(StructuralEntity):
         return sum([lamina.calculate_weight_per_A() for lamina in self.laminas])
 
     def strains_from_loads(self) -> np.ndarray:
-        self.Strains = np.linalg.inv(self.ABD_matrix) @ self.Loads
-        return self.Strains
+        return np.linalg.inv(self.ABD_matrix) @ self.loads
 
     def loads_from_strains(self) -> np.ndarray:
-        self.Loads = self.ABD_matrix @ self.Strains
-        return self.Loads
+        return self.ABD_matrix @ self.Strains
 
     def calculate_lamina_strains(self) -> None:
         """
@@ -92,19 +90,19 @@ class Laminate(StructuralEntity):
         maximum absolute value. Set this as the lamina strain. This is used
         for failure analysis in the lamina.
         """
-        Strains = self.strains_from_loads()
+        strains = self.strains
 
         for lamina in self.laminas:
             max1 = max(
-                Strains[0] - lamina.z0 * Strains[3], Strains[0] - lamina.z1 * Strains[3], key=abs
+                strains[0] - lamina.z0 * strains[3], strains[0] - lamina.z1 * strains[3], key=abs
             )
             max2 = max(
-                Strains[1] - lamina.z0 * Strains[4], Strains[1] - lamina.z1 * Strains[4], key=abs
+                strains[1] - lamina.z0 * strains[4], strains[1] - lamina.z1 * strains[4], key=abs
             )
             max3 = max(
-                Strains[2] - lamina.z0 * Strains[5], Strains[2] - lamina.z1 * Strains[5], key=abs
+                strains[2] - lamina.z0 * strains[5], strains[2] - lamina.z1 * strains[5], key=abs
             )
-            lamina.Epsilon = np.array([max1, max2, max3])
+            lamina.strains = np.array([max1, max2, max3])
 
     def calculate_equivalent_properties(self) -> list[float]:
         """Calculate equivalent engineering properties of the laminate."""
@@ -159,7 +157,7 @@ class Laminate(StructuralEntity):
     def n_crit(self) -> float:
         """Calculate critical load intensity given current loading direction."""
         maxfailurefactor = self.failure_analysis()
-        n_crit = self.Loads / maxfailurefactor
+        n_crit = self.loads / maxfailurefactor
         return n_crit
 
     def calculate_abd_for_sandwich(self, corethickness: float) -> np.ndarray:
@@ -214,9 +212,9 @@ class Laminate(StructuralEntity):
                 directions (eigenvectors).
         """
         # find stress tensor based on loads and thickness:
-        Sx = self.Loads[0]
-        Sy = self.Loads[1]
-        Sxy = self.Loads[2]
+        Sx = self.loads[0]
+        Sy = self.loads[1]
+        Sxy = self.loads[2]
 
         stress_tensor = np.array([[Sx, Sxy], [Sxy, Sy]])
 
