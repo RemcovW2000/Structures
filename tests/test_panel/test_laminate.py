@@ -78,10 +78,18 @@ def test_engineering_properties(
     "angles_list, expected_strength",
     [
         ([0, 0, 0, 0], Christos.failure_properties.R11t),
+        ([0, 0, 0, 0], -Christos.failure_properties.R11c),
         ([90, 90, 90, 90], Christos.failure_properties.Yt),
+        ([90, 90, 90, 90], -Christos.failure_properties.Yc),
     ],
 )
 def test_failure(angles_list: list[float], expected_strength: float) -> None:
+    """
+    Test failure indicator calculations.
+
+    For UD in x direction, the strength should be R11t (tensile)
+    Same for transverse, etc.
+    """
     laminate = laminate_builder([0, 0, 0, 0, 0], False, True, 1, material_props=Christos)
     laminate.loads = np.array([Christos.failure_properties.R11t, 0, 0, 0, 0, 0])
     assert laminate.fi == pytest.approx(1.0, rel=1e-5)
@@ -90,3 +98,15 @@ def test_failure(angles_list: list[float], expected_strength: float) -> None:
     # also tests that failure is recalculated when loads are changed.
     laminate.loads = np.array([0, 0, Christos.failure_properties.S * 2, 0, 0, 0])
     assert laminate.fi == pytest.approx(2, rel=1e-5)
+
+
+def test_fi_dict() -> None:
+    laminate = laminate_builder([0, 90, 45, -45], False, True, 1, material_props=Christos)
+    laminate.loads = np.array([Christos.failure_properties.R11t / 2, 0, 0, 0, 0, 0])
+    fi = laminate.fi
+    assert fi > 0
+    fi_dict = laminate.failure_indicators
+    vals = list(fi_dict.values())
+    assert all(isinstance(v, float) for v in vals)
+    assert all(v >= 0 for v in vals)
+    assert len(vals) == 2
