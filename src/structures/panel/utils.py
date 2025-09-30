@@ -31,8 +31,8 @@ def laminate_builder(
             Lamina(
                 t=material_props.t,
                 theta=angle,
-                elastic=material_props.elastic_properties,
-                failure=material_props.failure_properties,
+                elastic_properties=material_props.elastic_properties,
+                failure_properties=material_props.failure_properties,
             )
         )
 
