@@ -8,8 +8,8 @@ from ..structural_entity import StructuralEntity
 class Laminate(StructuralEntity):
     def __init__(
         self, laminas: list[Lamina], Loads: list[float] = None, Strains: list[float] = None
-    ):
-        super().__init__("laminate")
+    ) -> None:
+        super().__init__()
         self.laminas: list[Lamina] = laminas
         self.Loads: list[float] = Loads
         self.Strains: list[float] = Strains

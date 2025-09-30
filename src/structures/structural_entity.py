@@ -133,12 +133,16 @@ class StructuralEntity(ABC):
                 "`failure_analysis` must be decorated with `@failure_analysis_decorator`"
             )
 
-    def __init__(self, name: name_options):
+    def __init__(self):
         self.failure_indicators: dict[str, float] = {}
-        self.name: str = name
+        self.__dict__["_cached_loads"] = None
+        self.__dict__["_cached_strains"] = None
 
     @cached_property
     def loads(self) -> Optional[Any]:
+        """Loads property, computed from strains if not set."""
+        if self.__dict__.get("_cached_strains") is None:
+            raise ValueError("Cannot compute loads: strains are not set")
         return self.loads_from_strains()
 
     @abstractmethod
@@ -148,12 +152,15 @@ class StructuralEntity(ABC):
     @loads.setter
     def loads(self, value: Any) -> None:
         """Set loads, invalidate strains and cached failure indicator."""
-        self.loads = value
-        self.strains = None
+        self.__dict__.pop("_cached_strains", None)
         self.__dict__.pop("_cached_fi", None)
+        self.__dict__["_cached_loads"] = value
 
     @cached_property
     def strains(self) -> Optional[Any]:
+        """Strains property, computed from loads if not set."""
+        if self.__dict__.get("_cached_loads") is None:
+            raise ValueError("Cannot compute strains: loads are not set")
         return self.strains_from_loads()
 
     @abstractmethod
@@ -163,9 +170,9 @@ class StructuralEntity(ABC):
     @strains.setter
     def strains(self, value: Any) -> None:
         """Set strains, invalidate loads and cached failure indicator."""
-        self.strains = value
-        self.loads = None
+        self.__dict__.pop("_cached_loads", None)
         self.__dict__.pop("_cached_fi", None)
+        self.__dict__["_cached_strains"] = value
 
     def invalidate_failure_state(self) -> None:
         """Invalidate cached properties."""
@@ -185,17 +192,20 @@ class StructuralEntity(ABC):
         return self.failure_analysis()
 
     @abstractmethod
-    def failure_analysis(self) -> float:
+    def failure_analysis(self) -> list[FailureMode]:
         """
-        Perform failure analysis on the structural entity, call method on all children.
-
-        :return: Maximum failure indicator across all failure modes and child objects.
+        Perform failure analysis on the structural entity. Must return a list
+        of tuples (failure_mode: str, failure_indicator: float). The decorator
+        `@failure_analysis` will call `set_failure_indicators` and return the
+        maximum indicator.
         """
         raise NotImplementedError("Subclasses must implement this method")
 
     def set_failure_indicators(self, failure_modes: list) -> float:
         """
         Sets the failure_indicators attribute based on failure modes and child objects.
+
+        Called by the wrapped failure analysis method.
         """
         failure_indicators = {}
         if failure_modes:
@@ -215,12 +225,12 @@ class StructuralEntity(ABC):
         self.failure_indicators = failure_indicators
         return max(value for value in self.failure_indicators.values())
 
-    def get_hierarchy(self) -> dict | None:
+    def get_hierarchy(self) -> dict[str, float | dict] | None:
         """Returns the lower hierarchy of child objects."""
         hierarchy_dict = copy.deepcopy(self.failure_indicators)
-        hierarchy_dict["object_name"] = self.name
-        hierarchy_dict["children"] = []
+        hierarchy_dict["object_name"] = self.__class__.__name__
 
+        hierarchy_dict["children"] = []
         for child in self.child_objects:
             child_hierarchy_dict = child.get_hierarchy()
 
@@ -229,10 +239,10 @@ class StructuralEntity(ABC):
 
 
 if __name__ == "__main__":
-    # basic usage example demonstrating loads/strains interdependence and cached fi
+
     class DemoEntity(StructuralEntity):
-        def __init__(self, name: name_options):
-            super().__init__(name)
+        def __init__(self) -> None:
+            super().__init__()
 
         @failure_analysis
         def failure_analysis(self) -> list[FailureMode]:
@@ -248,7 +258,13 @@ if __name__ == "__main__":
                 fi = 0.0
             return [("fiber_failure", fi)]
 
-    ent = DemoEntity("lamina")
+        def loads_from_strains(self) -> Any:
+            return self.strains
+
+        def strains_from_loads(self) -> Any:
+            return self.loads
+
+    ent = DemoEntity()
     print("initial loads:", ent.loads, "strains:", ent.strains)
 
     ent.loads = {"force": 200.0}

@@ -37,7 +37,7 @@ class Lamina(StructuralEntity):
         sigma: Optional[NDArray[np.float64]] = None,
         epsilon: Optional[NDArray[np.float64]] = None,
     ) -> None:
-        super().__init__("lamina")
+        super().__init__()
 
         # Geometric and material properties
         self.t: float = t
