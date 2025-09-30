@@ -108,17 +108,14 @@ class Laminate(StructuralEntity):
 
     def calculate_equivalent_properties(self) -> list[float]:
         """Calculate equivalent engineering properties of the laminate."""
-        self.Ex = (self.A_matrix[0, 0] * self.A_matrix[1, 1] - self.A_matrix[0, 1] ** 2) / (
-            self.h * self.A_matrix[1, 1]
-        )
-        self.Ey = (self.A_matrix[0, 0] * self.A_matrix[1, 1] - self.A_matrix[0, 1] ** 2) / (
-            self.h * self.A_matrix[0, 0]
-        )
+        A_bar = self.A_matrix / self.h
+        S = np.linalg.inv(A_bar)
 
-        self.vxy = self.A_matrix[0, 1] / self.A_matrix[1, 1]
-        self.vyx = self.A_matrix[0, 1] / self.A_matrix[0, 0]
-
-        self.Gxy = self.A_matrix[2, 2] / self.h
+        self.Ex = 1.0 / float(S[0, 0])
+        self.Ey = 1.0 / float(S[1, 1])
+        self.Gxy = 1.0 / float(S[2, 2])
+        self.vxy = -float(S[0, 1]) / float(S[0, 0])
+        self.vyx = -float(S[0, 1]) / float(S[1, 1])
         return [self.Ex, self.Ey, self.vxy, self.vyx, self.Gxy]
 
     def calculate_equivalent_properties_bending(self) -> list[float]:
