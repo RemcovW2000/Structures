@@ -1,6 +1,7 @@
 import numpy as np
 from base_components.core import Core
 
+from structures.panel.data_utils import PanelLoads, PanelStrains
 from structures.panel.laminate import Laminate
 from structures.structural_entity import StructuralEntity
 
@@ -11,8 +12,8 @@ class Sandwich(StructuralEntity):
         bottom_laminate: Laminate,
         top_laminate: Laminate,
         core: Core,
-        loads: list[float] = None,
-        strains: list[float] = None,
+        loads: PanelLoads = None,
+        strains: PanelStrains = None,
     ):
         super().__init__()
 
@@ -21,8 +22,8 @@ class Sandwich(StructuralEntity):
         self.core: Core = core
         self.sandwich: bool = True
 
-        self.loads: np.ndarray = loads
-        self.strains: np.ndarray = strains
+        self.loads: PanelLoads = loads
+        self.strains: PanelStrains = strains
         self.h: float = self.bottom_laminate.h + self.top_laminate.h + self.core.h
 
         # ABD matrix assigned upon initialisation:
@@ -38,7 +39,7 @@ class Sandwich(StructuralEntity):
         Calculates the ABD matrix for the sandwich structure
         :return:
         """
-        # TODO: ADD TRANSVERSE SHEAR EFFECTS!!
+        # TODO: add transverse shear effects
         L1ABD = self.bottom_laminate.calculate_core_ABD(self.core.h)
         L2ABD = self.top_laminate.calculate_core_ABD(self.core.h)
 
@@ -178,8 +179,8 @@ class Sandwich(StructuralEntity):
 
     def face_sheet_load_distribution(self) -> None:
         # Normal loads are as follows:
-        Nx = self.loads[0]
-        Ny = self.loads[1]
+        Nx = self.loads.Nx
+        Ny = self.loads.Ny
 
         # Divide normal loads between facesheets based on EA of facesheets
 
@@ -197,14 +198,12 @@ class Sandwich(StructuralEntity):
         Ny1 = Ny * (Eyt1 / (Eyt1 + Eyt2))
         Ny2 = Ny * (Eyt2 / (Eyt1 + Eyt2))
 
-        Ns = self.loads[2]
-
         # Divide shear loads between facesheets based on shear stifness GA of facesheets
         Gt1 = self.bottom_laminate.Gxy * self.bottom_laminate.h
         Gt2 = self.top_laminate.Gxy * self.top_laminate.h
 
-        Ns1 = Ns * (Gt1 / (Gt1 + Gt2))
-        Ns2 = Ns * (Gt2 / (Gt1 + Gt2))
+        Ns1 = self.loads.Nxy * (Gt1 / (Gt1 + Gt2))
+        Ns2 = self.loads.Nxy * (Gt2 / (Gt1 + Gt2))
 
         # Mx = self.loads[3]
         # My = self.loads[4]

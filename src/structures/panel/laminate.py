@@ -3,17 +3,18 @@ import numpy as np
 from structures.panel.base_components.lamina import Lamina
 
 from ..structural_entity import FailureMode, StructuralEntity, failure_analysis
+from .data_utils import PanelLoads, PanelStrains
 from .math_utils import rotation_matrix
 
 
 class Laminate(StructuralEntity):
     def __init__(
-        self, laminas: list[Lamina], loads: list[float] = None, strains: list[float] = None
+        self, laminas: list[Lamina], loads: PanelLoads = PanelLoads, strains: PanelStrains = None
     ) -> None:
         super().__init__()
         self.laminas: list[Lamina] = laminas
-        self.loads: list[float] = loads
-        self.Strains: list[float] = strains
+        self.loads: PanelLoads = loads
+        self.strains: PanelStrains = strains
         self.sandwich: bool = False
         self.stackingsequence: list[float] = [lamina.theta for lamina in laminas]
 
@@ -76,11 +77,11 @@ class Laminate(StructuralEntity):
         """Calculates weight per unit area of laminate."""
         return sum([lamina.calculate_weight_per_A() for lamina in self.laminas])
 
-    def strains_from_loads(self) -> np.ndarray:
-        return np.linalg.inv(self.ABD_matrix) @ self.loads
+    def strains_from_loads(self) -> PanelStrains:
+        return PanelStrains(np.linalg.inv(self.ABD_matrix) @ self.loads.array)
 
-    def loads_from_strains(self) -> np.ndarray:
-        return self.ABD_matrix @ self.Strains
+    def loads_from_strains(self) -> PanelLoads:
+        return PanelLoads(self.ABD_matrix @ self.strains.array)
 
     def calculate_lamina_strains(self) -> None:
         """
@@ -90,7 +91,7 @@ class Laminate(StructuralEntity):
         maximum absolute value. Set this as the lamina strain. This is used
         for failure analysis in the lamina.
         """
-        strains = self.strains
+        strains = self.strains.array
 
         for lamina in self.laminas:
             max1 = max(
@@ -157,7 +158,7 @@ class Laminate(StructuralEntity):
     def n_crit(self) -> float:
         """Calculate critical load intensity given current loading direction."""
         maxfailurefactor = self.failure_analysis()
-        n_crit = self.loads / maxfailurefactor
+        n_crit = self.loads.array / maxfailurefactor
         return n_crit
 
     def calculate_abd_for_sandwich(self, corethickness: float) -> np.ndarray:
@@ -212,18 +213,18 @@ class Laminate(StructuralEntity):
                 directions (eigenvectors).
         """
         # find stress tensor based on loads and thickness:
-        Sx = self.loads[0]
-        Sy = self.loads[1]
-        Sxy = self.loads[2]
+        Sx = self.loads.Nx
+        Sy = self.loads.Ny
+        Sxy = self.loads.Nxy
 
         stress_tensor = np.array([[Sx, Sxy], [Sxy, Sy]])
 
         # Calculate the eigenvalues (principal stresses) and eigenvectors
         # (principal directions)
-        principal_loadintensities, principal_directions = np.linalg.eig(stress_tensor)
+        principal_load_intensities, principal_directions = np.linalg.eig(stress_tensor)
 
         # Ensure the principal stresses are ordered from largest to smallest
-        idx = np.argsort(principal_loadintensities)[::-1]
+        idx = np.argsort(principal_load_intensities)[::-1]
         principal_directions = principal_directions[:, idx]
 
-        return principal_loadintensities, principal_directions
+        return principal_load_intensities, principal_directions

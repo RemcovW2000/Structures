@@ -1,4 +1,9 @@
 from dataclasses import dataclass
+from typing import Any
+
+import numpy as np
+
+loads_strains_size = 6
 
 
 @dataclass(frozen=True)
@@ -122,6 +127,27 @@ class PanelLoads:
     My: float
     Mxy: float
 
+    def __init__(self, *args: Any, **kwargs: Any):
+        fields = ["Nx", "Ny", "Nxy", "Mx", "My", "Mxy"]
+        if len(args) == 1 and not kwargs:
+            arr = np.asarray(args[0], dtype=float).ravel()
+            if arr.size != loads_strains_size:
+                raise ValueError("array must have 6 elements")
+            for name, val in zip(fields, arr):
+                object.__setattr__(self, name, float(val))
+        elif not args:
+            missing = [f for f in fields if f not in kwargs]
+            if missing:
+                raise TypeError(f"missing keyword arguments: {missing}")
+            for name in fields:
+                object.__setattr__(self, name, float(kwargs[name]))
+        else:
+            raise TypeError("Use PanelLoads(array) or PanelLoads(Nx=..., Ny=..., ...)")
+
+    @property
+    def array(self) -> np.ndarray:
+        return np.array([self.Nx, self.Ny, self.Nxy, self.Mx, self.My, self.Mxy])
+
 
 @dataclass(frozen=True)
 class PanelStrains:
@@ -137,3 +163,33 @@ class PanelStrains:
     kappa_x: float
     kappa_y: float
     kappa_xy: float
+
+    def __init__(self, *args: Any, **kwargs: Any):
+        fields = ["epsilon_xo", "epsilon_yo", "gamma_xyo", "kappa_x", "kappa_y", "kappa_xy"]
+        if len(args) == 1 and not kwargs:
+            arr = np.asarray(args[0], dtype=float).ravel()
+            if arr.size != loads_strains_size:
+                raise ValueError("array must have 6 elements")
+            for name, val in zip(fields, arr):
+                object.__setattr__(self, name, float(val))
+        elif not args:
+            missing = [f for f in fields if f not in kwargs]
+            if missing:
+                raise TypeError(f"missing keyword arguments: {missing}")
+            for name in fields:
+                object.__setattr__(self, name, float(kwargs[name]))
+        else:
+            raise TypeError("Use PanelStrains(array) or PanelStrains(epsilon_xo=..., ...)")
+
+    @property
+    def array(self) -> np.ndarray:
+        return np.array(
+            [
+                self.epsilon_xo,
+                self.epsilon_yo,
+                self.gamma_xyo,
+                self.kappa_x,
+                self.kappa_y,
+                self.kappa_xy,
+            ]
+        )

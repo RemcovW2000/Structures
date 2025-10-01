@@ -158,7 +158,7 @@ class StructuralEntity(ABC):
 
     @cached_property
     def strains(self) -> Optional[Any]:
-        """Strains property, computed from loads if not set."""
+        """strains property, computed from loads if not set."""
         if self.__dict__.get("_cached_loads") is None:
             raise ValueError("Cannot compute strains: loads are not set")
         return self.strains_from_loads()

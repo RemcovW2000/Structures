@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 
 from structures.panel.data.lamina_props import Christos
+from structures.panel.data_utils import PanelLoads
 from structures.panel.utils import laminate_builder
 
 
@@ -91,18 +92,18 @@ def test_failure(angles_list: list[float], expected_strength: float) -> None:
     Same for transverse, etc.
     """
     laminate = laminate_builder([0, 0, 0, 0, 0], False, True, 1, material_props=Christos)
-    laminate.loads = np.array([Christos.failure_properties.R11t, 0, 0, 0, 0, 0])
+    laminate.loads = PanelLoads(np.array([Christos.failure_properties.R11t, 0, 0, 0, 0, 0]))
     assert laminate.fi == pytest.approx(1.0, rel=1e-5)
 
     # Test shear:
     # also tests that failure is recalculated when loads are changed.
-    laminate.loads = np.array([0, 0, Christos.failure_properties.S * 2, 0, 0, 0])
+    laminate.loads = PanelLoads(np.array([0, 0, Christos.failure_properties.S * 2, 0, 0, 0]))
     assert laminate.fi == pytest.approx(2, rel=1e-5)
 
 
 def test_fi_dict() -> None:
     laminate = laminate_builder([0, 90, 45, -45], False, True, 1, material_props=Christos)
-    laminate.loads = np.array([Christos.failure_properties.R11t / 2, 0, 0, 0, 0, 0])
+    laminate.loads = PanelLoads(np.array([Christos.failure_properties.R11t / 2, 0, 0, 0, 0, 0]))
     fi = laminate.fi
     assert fi > 0
     fi_dict = laminate.failure_indicators
