@@ -85,10 +85,8 @@ class MaterialProperties:
     failure_properties: FailureProperties
 
 
-dataclass(frozen=True)
-
-
-class PanelLoadCase:
+@dataclass(frozen=True)
+class PanelLoads:
     """
     Load case for a panel type object, namely sandwich or laminate.
 
@@ -123,3 +121,19 @@ class PanelLoadCase:
     Mx: float
     My: float
     Mxy: float
+
+
+@dataclass(frozen=True)
+class PanelStrains:
+    """
+    Strain case for a panel type object, namely sandwich or laminate.
+
+    Directions are the same as loads.
+    """
+
+    epsilon_xo: float
+    epsilon_yo: float
+    gamma_xyo: float
+    kappa_x: float
+    kappa_y: float
+    kappa_xy: float
