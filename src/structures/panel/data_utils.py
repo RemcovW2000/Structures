@@ -48,12 +48,13 @@ class CoreProperties:
     """Core material properties for sandwich panels.
 
     Attributes:
-        E1: Modulus in direction 1 (MPa or consistent units).
-        E2: Modulus in direction 2.
-        G12: Shear modulus in plane 1-2.
-        v12: Poisson's ratio (strain in 2 due to stress in 1).
+        Ez: modulus in z direction.
+        Sxz: shear strength xz direction (transverse out of plane)
+        Gxz: shear modulus xz direction (transverse out of plane)
+        Syz: shear strength yz direction (transverse out of plane)
+        Gyz: shear modulus yz direction (transverse out of plane)
+        Xc: compressive strength???????????????????????????? #TODO: figure out
         rho: Density (mass per unit volume, e.g., g/mm³).
-        t: Thickness of the core layer (mm or consistent units).
     """
 
     Ez: float
@@ -82,3 +83,43 @@ class MaterialProperties:
     rho: float
     elastic_properties: ElasticProperties
     failure_properties: FailureProperties
+
+
+dataclass(frozen=True)
+
+
+class PanelLoadCase:
+    """
+    Load case for a panel type object, namely sandwich or laminate.
+
+    Attributes:
+        Nx: normal load intensity in x direction (N/mm)
+        Ny: normal load intensity in y direction (N/mm)
+        Nxy: shear load intensity in xy direction (N/mm)
+        Mx: bending moment intensity (bending the x axis around the y axis)
+        My: bending moment intensity (bending the y axis around the x axis)
+        Mxy: shear moment intensity (bending moment around the x or y axis)
+
+    ┌─────►
+    │    x
+    │       Nxy  ▲
+    │y       ◄───┤Ny
+    ▼     ┌──────┴──────┐
+          │             │
+      Nxy▲│             │
+         ││             │ Nx
+      ◄──┴┤             ├┬──►
+       Nx │             ││
+          │             ││
+          │             │▼Nxy
+          └──────┬──────┘
+               Ny├──►
+                 ▼  Nxy
+    """
+
+    Nx: float
+    Ny: float
+    Nxy: float
+    Mx: float
+    My: float
+    Mxy: float
