@@ -40,10 +40,10 @@ class Sandwich(StructuralEntity):
         :return:
         """
         # TODO: add transverse shear effects
-        L1ABD = self.bottom_laminate.calculate_core_ABD(self.core.h)
-        L2ABD = self.top_laminate.calculate_core_ABD(self.core.h)
+        bottom_ABD = self.bottom_laminate.calculate_ABD_offset(-self.core.h / 2)
+        top_ABD = self.top_laminate.calculate_ABD_offset(self.core.h / 2)
 
-        totalABD = L1ABD + L2ABD
+        totalABD = bottom_ABD + top_ABD
 
         self.ABD_matrix = totalABD
         return totalABD

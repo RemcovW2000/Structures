@@ -43,35 +43,40 @@ class Laminate(StructuralEntity):
 
     def calculate_ABD(self) -> np.ndarray:
         """Calculate the ABD matrix of the laminate."""
+        ABD = np.zeros((6, 6))
+
+        for lamina in self.laminas:
+            ABD += self.lamina_ABD(Qbar=lamina.Qbar, z1=lamina.z1, z0=lamina.z0)
+
+        self.A_matrix = ABD[0:3, 0:3]
+        self.B_matrix = ABD[0:3, 3:6]
+        self.D_matrix = ABD[3:6, 3:6]
+        self.ABD_matrix = ABD
+
+        self.ABD_matrix_inverse = np.linalg.inv(self.ABD_matrix)
+        return self.ABD_matrix
+
+    def lamina_ABD(self, Qbar: np.ndarray, z1: float, z0: float) -> np.ndarray:
+        """Calculate the ABD matrix of a single lamina given its z0 and z1."""
         A_matrix = np.zeros((3, 3))
         B_matrix = np.zeros((3, 3))
         D_matrix = np.zeros((3, 3))
 
-        for lamina in self.laminas:
-            # Calculate the difference (Z_k - Z_k-1)
-            delta_Z = lamina.z1 - lamina.z0
-            # Update A_ij by adding the product of Q(k) and the difference in Z
-            A_matrix += lamina.Qbar * delta_Z
+        # Calculate the difference (Z_k - Z_k-1)
+        delta_Z = z1 - z0
+        # Update A_ij by adding the product of Q(k) and the difference in Z
+        A_matrix += Qbar * delta_Z
 
-            # Now the same for b and d matrices:
-            delta_Z_squared = lamina.z0**2 - lamina.z1**2
-            B_matrix += 1 / 2 * (lamina.Qbar * delta_Z_squared)
+        # Now the same for b and d matrices:
+        delta_Z_squared = z0**2 - z1**2
+        B_matrix += 1 / 2 * (Qbar * delta_Z_squared)
 
-            delta_Z_cubed = lamina.z1**3 - lamina.z0**3
-            D_matrix += 1 / 3 * (lamina.Qbar * delta_Z_cubed)
-
-        # assign the matrices as attributes individually, this can be useful:
-        # (but should be removed if this code should be used for high intensity
-        # applications)
-        self.A_matrix = A_matrix
-        self.B_matrix = B_matrix
-        self.D_matrix = D_matrix
+        delta_Z_cubed = z1**3 - z0**3
+        D_matrix += 1 / 3 * (Qbar * delta_Z_cubed)
 
         # Save ABD matrix
-        self.ABD_matrix = np.block([[A_matrix, B_matrix], [B_matrix, D_matrix]])
-
-        self.ABD_matrix_inverse = np.linalg.inv(self.ABD_matrix)
-        return self.ABD_matrix
+        LaminaABD = np.block([[A_matrix, B_matrix], [B_matrix, D_matrix]])
+        return LaminaABD
 
     def calculate_weight_per_A(self) -> float:
         """Calculates weight per unit area of laminate."""
@@ -161,30 +166,15 @@ class Laminate(StructuralEntity):
         n_crit = self.loads.array / maxfailurefactor
         return n_crit
 
-    def calculate_abd_for_sandwich(self, corethickness: float) -> np.ndarray:
-        """Calculate the ABD matrix of the laminate given an extra core thickness."""
-        A_matrix = np.zeros((3, 3))
-        B_matrix = np.zeros((3, 3))
-        D_matrix = np.zeros((3, 3))
+    def calculate_ABD_offset(self, offset: float) -> np.ndarray:
+        """Calculate the ABD matrix of the laminate given an offset."""
+        ABD = np.zeros((6, 6))
 
         for lamina in self.laminas:
-            # Calculate the difference (Z_k - Z_k-1)
-            z1 = lamina.z1 + corethickness / 2 + self.h / 2
-            z0 = lamina.z0 + corethickness / 2 + self.h / 2
-
-            delta_Z = z1 - z0
-            # Update A_ij by adding the product of Q(k) and the difference in Z
-            A_matrix += lamina.Qbar * delta_Z
-
-            # Now the same for b and d matrices:
-            delta_Z_squared = z1**2 - z0**2
-            B_matrix += 1 / 2 * (lamina.Qbar * delta_Z_squared)
-
-            delta_Z_cubed = z1**3 - z0**3
-            D_matrix += 1 / 3 * (lamina.Qbar * delta_Z_cubed)
-
-        CoreABD = np.block([[A_matrix, B_matrix], [B_matrix, D_matrix]])
-        return CoreABD
+            z1 = lamina.z1 + offset
+            z0 = lamina.z0 + offset
+            ABD += self.lamina_ABD(Qbar=lamina.Qbar, z1=z1, z0=z0)
+        return ABD
 
     def rotated_ABD(self, theta: float) -> np.ndarray:
         """Calculate the ABD matrix of the laminate rotated by an angle theta."""
