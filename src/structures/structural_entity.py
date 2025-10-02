@@ -120,14 +120,10 @@ class StructuralEntity(ABC):
         super().__init_subclass__(**kwargs)
         if "failure_analysis" not in cls.__dict__:
             raise TypeError(
-                "Subclasses must implement `failure_analysis` and decorate it with `@failure_analysis_decorator`"
+                "Subclasses must implement `failure_analysis` and decorate it with `@failure_analysis`"
             )
 
         impl = cls.__dict__["failure_analysis"]
-        # unwrap descriptors
-        if isinstance(impl, (classmethod, staticmethod)):
-            impl = impl.__func__
-
         if not getattr(impl, "_is_failure_analysis", False):
             raise TypeError(
                 "`failure_analysis` must be decorated with `@failure_analysis_decorator`"
