@@ -5,13 +5,14 @@ from structures.panel.base_components.lamina import Lamina
 from ..structural_entity import FailureMode, StructuralEntity, failure_analysis
 from .data_utils import PanelLoads, PanelStrains
 from .math_utils import rotation_matrix
+from .Panel import Panel
 
 
-class Laminate(StructuralEntity):
+class Laminate(StructuralEntity, Panel):
     def __init__(
         self, laminas: list[Lamina], loads: PanelLoads = PanelLoads, strains: PanelStrains = None
     ) -> None:
-        super().__init__()
+        StructuralEntity.__init__(self)
         self.laminas: list[Lamina] = laminas
         self.loads: PanelLoads = loads
         self.strains: PanelStrains = strains
@@ -19,8 +20,8 @@ class Laminate(StructuralEntity):
         self.stackingsequence: list[float] = [lamina.theta for lamina in laminas]
 
         self.assign_lamina_height()
-        self.calculate_ABD()
-        self.calculate_equivalent_properties()
+
+        Panel.__init__(self)
 
     @property
     def child_objects(self) -> list[Lamina]:
@@ -41,7 +42,7 @@ class Laminate(StructuralEntity):
             lamina.z0 = lamina.z0 - 0.5 * h
             lamina.z1 = lamina.z1 - 0.5 * h
 
-    def calculate_ABD(self) -> np.ndarray:
+    def calculate_ABD_matrix(self) -> np.ndarray:
         """Calculate the ABD matrix of the laminate."""
         ABD = np.zeros((6, 6))
 

@@ -3,10 +3,11 @@ from base_components.core import Core
 
 from structures.panel.data_utils import PanelLoads, PanelStrains
 from structures.panel.laminate import Laminate
+from structures.panel.Panel import Panel
 from structures.structural_entity import StructuralEntity
 
 
-class Sandwich(StructuralEntity):
+class Sandwich(StructuralEntity, Panel):
     def __init__(
         self,
         bottom_laminate: Laminate,
@@ -15,7 +16,7 @@ class Sandwich(StructuralEntity):
         loads: PanelLoads = None,
         strains: PanelStrains = None,
     ):
-        super().__init__()
+        StructuralEntity.__init__()
 
         self.bottom_laminate: Laminate = bottom_laminate  # bottom laminate
         self.top_laminate: Laminate = top_laminate  # top laminate
@@ -26,15 +27,13 @@ class Sandwich(StructuralEntity):
         self.strains: PanelStrains = strains
         self.h: float = self.bottom_laminate.h + self.top_laminate.h + self.core.h
 
-        # ABD matrix assigned upon initialisation:
-        self.calculate_equivalent_ABD()
-        self.calculate_equivalent_properties()
+        Panel.__init__(self)
 
     @property
     def child_objects(self) -> list[StructuralEntity]:
         return [self.bottom_laminate, self.top_laminate, self.core]
 
-    def calculate_equivalent_ABD(self) -> np.ndarray:
+    def calculate_ABD_matrix(self) -> np.ndarray:
         """
         Calculates the ABD matrix for the sandwich structure
         :return:
@@ -47,20 +46,6 @@ class Sandwich(StructuralEntity):
 
         self.ABD_matrix = totalABD
         return totalABD
-
-    def calculate_equivalent_properties(self) -> None:
-        # Here we calculate the engineering constants (or equivalent properties):
-        self.Ex = (self.ABD_matrix[0, 0] * self.ABD_matrix[1, 1] - self.ABD_matrix[0, 1] ** 2) / (
-            self.h * self.ABD_matrix[1, 1]
-        )
-        self.Ey = (self.ABD_matrix[0, 0] * self.ABD_matrix[1, 1] - self.ABD_matrix[0, 1] ** 2) / (
-            self.h * self.ABD_matrix[0, 0]
-        )
-
-        self.vxy = self.ABD_matrix[0, 1] / self.ABD_matrix[1, 1]
-        self.vyx = self.ABD_matrix[0, 1] / self.ABD_matrix[0, 0]
-
-        self.Gxy = self.ABD_matrix[2, 2] / self.h
 
     def failure_analysis(self) -> float:
         """
