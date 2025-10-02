@@ -5,7 +5,7 @@ from structures.panel.base_components.lamina import Lamina
 from ..structural_entity import FailureMode, StructuralEntity, failure_analysis
 from .data_utils import PanelLoads, PanelStrains
 from .math_utils import rotation_matrix
-from .Panel import Panel
+from .Panel import Panel, calculate_ABD_matrix
 
 
 class Laminate(StructuralEntity, Panel):
@@ -42,6 +42,7 @@ class Laminate(StructuralEntity, Panel):
             lamina.z0 = lamina.z0 - 0.5 * h
             lamina.z1 = lamina.z1 - 0.5 * h
 
+    @calculate_ABD_matrix
     def calculate_ABD_matrix(self) -> np.ndarray:
         """Calculate the ABD matrix of the laminate."""
         ABD = np.zeros((6, 6))

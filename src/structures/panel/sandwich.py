@@ -3,7 +3,7 @@ from base_components.core import Core
 
 from structures.panel.data_utils import PanelLoads, PanelStrains
 from structures.panel.laminate import Laminate
-from structures.panel.Panel import Panel
+from structures.panel.Panel import Panel, calculate_ABD_matrix
 from structures.structural_entity import StructuralEntity
 
 
@@ -33,14 +33,15 @@ class Sandwich(StructuralEntity, Panel):
     def child_objects(self) -> list[StructuralEntity]:
         return [self.bottom_laminate, self.top_laminate, self.core]
 
+    @calculate_ABD_matrix
     def calculate_ABD_matrix(self) -> np.ndarray:
         """
         Calculates the ABD matrix for the sandwich structure
         :return:
         """
         # TODO: add transverse shear effects
-        bottom_ABD = self.bottom_laminate.calculate_ABD_offset(-self.core.h / 2)
-        top_ABD = self.top_laminate.calculate_ABD_offset(self.core.h / 2)
+        bottom_ABD = self.bottom_laminate.calculate_ABD_offset(offset=-self.core.h / 2)
+        top_ABD = self.top_laminate.calculate_ABD_offset(offset=self.core.h / 2)
 
         totalABD = bottom_ABD + top_ABD
 
