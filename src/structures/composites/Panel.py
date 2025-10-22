@@ -43,6 +43,7 @@ class Panel(ABC):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         self.calculate_ABD_matrix()
         self.calculate_equivalent_properties()
+        # hey
 
     @abstractmethod
     def calculate_ABD_matrix(self) -> None:
