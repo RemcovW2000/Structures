@@ -4,7 +4,7 @@ from base_components.core import Core
 from structures.panel.data_utils import PanelLoads, PanelStrains
 from structures.panel.laminate import Laminate
 from structures.panel.Panel import Panel, calculate_ABD_matrix
-from structures.structural_entity import StructuralEntity
+from structures.structural_entity import FailureMode, StructuralEntity
 
 
 class Sandwich(StructuralEntity, Panel):
@@ -37,9 +37,7 @@ class Sandwich(StructuralEntity, Panel):
     def calculate_ABD_matrix(self) -> np.ndarray:
         """
         Calculates the ABD matrix for the sandwich structure
-        :return:
         """
-        # TODO: add transverse shear effects
         bottom_ABD = self.bottom_laminate.calculate_ABD_offset(offset=-self.core.h / 2)
         top_ABD = self.top_laminate.calculate_ABD_offset(offset=self.core.h / 2)
 
@@ -48,26 +46,17 @@ class Sandwich(StructuralEntity, Panel):
         self.ABD_matrix = totalABD
         return totalABD
 
-    def failure_analysis(self) -> float:
-        """
-        Perform failure analysis on sandwich panel.
-
-        FI>0, when FI = 1 failure occurs at the applied load
-        loads must be assigned to the sandwich panel before calling this function.
-        """
-        super().failure_analysis()
-
-        # First calculate loads on each facesheet:
-
+    def failure_analysis(self) -> list[FailureMode]:
+        """Perform failure analysis on sandwich panel."""
         # calculate loads on facesheets:
-        self.face_sheet_load_distribution()
+        self.assign_facesheet_loads()
 
         # check first ply failure for both facesheets:
-        FPFFI = self.laminate_fpf()
+        max_fi1 = self.bottom_laminate.fi
+        max_fi2 = self.top_laminate.fi
+        first_ply_failure = max(max_fi1, max_fi2)
 
         # check for wrinkling in both facesheets:
-        # NOTE: both facesheets must be analyzed separately
-
         l1_stresses, l1_directions = self.bottom_laminate.principal_stresses_and_directions()
 
         l2_stresses, l2_directions = self.top_laminate.principal_stresses_and_directions()
@@ -76,18 +65,11 @@ class Sandwich(StructuralEntity, Panel):
         wrinklingFI1 = self.wrinkling_analysis(l1_stresses, l1_directions, self.bottom_laminate)
         wrinklingFI2 = self.wrinkling_analysis(l2_stresses, l2_directions, self.top_laminate)
 
-        failure_modes = [
-            ["wrinkling", wrinklingFI1],
-            ["wrinkling", wrinklingFI2],
-            ["first_ply_failure", FPFFI],
+        return [
+            ("wrinkling", wrinklingFI1),
+            ("wrinkling", wrinklingFI2),
+            ("first_ply_failure", first_ply_failure),
         ]
-        self.finalize_failure_analysis(failure_modes)
-
-        return max(
-            value
-            for key, value in self.failure_indicators.items()
-            if isinstance(value, (int, float))
-        )
 
     def calculate_weight_per_area(self) -> float:
         """Calculates weight per unit area of laminate."""
@@ -99,23 +81,24 @@ class Sandwich(StructuralEntity, Panel):
             ]
         )
 
-    def laminate_fpf(self) -> float:
-        # loads are assigned
-        max_fi1 = self.bottom_laminate.failure_analysis()
-        max_fi2 = self.top_laminate.failure_analysis()
-        return max(max_fi1, max_fi2)
-
     def buckling_scaling_factor(self, Ncrit: float) -> float:
-        # TODO: implement correct k
-        # Assuming k = 1 for now:
-        # k = 1
-        Nxcrit = Ncrit / (1 + Ncrit / (self.core.h * self.core.G))
+        """
+        Returns scaling factor by which to multiply panel buckling load.
+
+        Compensates for core transverse shearing.
+        """
+        # TODO: take into account directionality of buckling
+        Nxcrit = Ncrit / (1 + Ncrit / (self.core.h * self.core.properties.Gxz))
         return Nxcrit
 
     def wrinkling_analysis(
         self, laminate_stresses: np.ndarray, laminate_directions: np.ndarray, laminate: Laminate
     ) -> float:
-        # We obtain stresses and directions:
+        """
+        Perform wrinkling analysis.
+
+        Laminates have Loads assigned.
+        """
         # TODO: take into account assymetric laminates
         negative_values = laminate_stresses[laminate_stresses < 0]
         if len(negative_values) > 0:
@@ -163,7 +146,8 @@ class Sandwich(StructuralEntity, Panel):
             FI = 0
         return FI
 
-    def face_sheet_load_distribution(self) -> None:
+    def assign_facesheet_loads(self) -> None:
+        """Sets loads for facesheets."""
         # Normal loads are as follows:
         Nx = self.loads.Nx
         Ny = self.loads.Ny
@@ -195,11 +179,10 @@ class Sandwich(StructuralEntity, Panel):
         # My = self.loads[4]
         # Ms = self.loads[5]
 
-        # moments are a bit more complicated but not strictly neccesary now
-        # TODO: add facesheet loads due to moments
+        # TODO: add facesheet moments
 
-        self.bottom_laminate.Loads = [Nx1, Ny1, Ns1, 0, 0, 0]
-        self.top_laminate.Loads = [Nx2, Ny2, Ns2, 0, 0, 0]
+        self.bottom_laminate.Loads = PanelLoads(Nx=Nx1, Ny=Ny1, Nxy=Ns1)
+        self.top_laminate.Loads = PanelLoads(Nx=Nx2, Ny=Ny2, Nxy=Ns2)
 
     def shear_load_wrinkling_Ncrit(self) -> float:
         t_face = self.bottom_laminate.h
