@@ -1,6 +1,6 @@
 import numpy as np
 
-from structures.panel.data_utils import CoreProperties
+from structures.composites.data_utils import CoreProperties
 
 
 class Core:

@@ -1,4 +1,8 @@
-from structures.panel.data_utils import ElasticProperties, FailureProperties, MaterialProperties
+from structures.composites.data_utils import (
+    ElasticProperties,
+    FailureProperties,
+    MaterialProperties,
+)
 
 steel = MaterialProperties(
     t=1.0,

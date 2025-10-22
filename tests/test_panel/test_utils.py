@@ -1,6 +1,6 @@
-from structures.panel.data.lamina_props import DEFAULT_MATERIAL
-from structures.panel.laminate import Laminate
-from structures.panel.utils import laminate_builder
+from structures.composites.data.lamina_props import DEFAULT_MATERIAL
+from structures.composites.laminate import Laminate
+from structures.composites.utils import laminate_builder
 
 
 def test_laminate_builder() -> None:

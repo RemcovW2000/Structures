@@ -6,7 +6,7 @@ This package provides data structures and utilities.
 from importlib.metadata import PackageNotFoundError, version
 
 # Public API re-exports
-from .panel.base_components.lamina import ElasticProperties, FailureProperties, Lamina
+from .composites.base_components.lamina import ElasticProperties, FailureProperties, Lamina
 
 try:
     __version__ = version("structures")

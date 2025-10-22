@@ -241,7 +241,7 @@ def plate4_mindlin_stiffness(
 
 if __name__ == "__main__":
     # Two-element assembly example: build laminate, make 2 quads side-by-side, assemble global K
-    from structures.panel.utils import laminate_builder
+    from structures.composites.utils import laminate_builder
 
     # Build a symmetric quasi-isotropic laminate (example material set in data)
     laminate = laminate_builder([0, 90, 45, -45], True, True, 1, type="T700")

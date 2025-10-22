@@ -1,7 +1,4 @@
 # Structures
-
-Professional Python project scaffold with src/ layout, tests, and auto-generated docs from docstrings.
-
 ## Features
 - src/ layout with package `structures`
 - Tests with pytest and coverage
@@ -21,16 +18,7 @@ source .venv/bin/activate  # Windows: .venv\\Scripts\\activate
 pip install -e .[dev,docs]
 ```
 
-2) Run linters, type-checker, tests:
-
-```bash
-ruff check .
-black --check .
-mypy
-pytest --cov
-```
-
-3) Serve docs locally:
+2) Serve docs locally:
 
 ```bash
 mkdocs serve

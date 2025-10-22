@@ -1,14 +1,15 @@
 import numpy as np
 
+from structures.composites.data.lamina_props import Christos
+from structures.composites.utils import laminate_builder
 from structures.FEM.plate_element import CompositeElement, Node, Orientation, Vector
 from structures.FEM.solver import FEMSolver
-from structures.panel.utils import laminate_builder
 
 
 def test_integration_laminate_one_element_inplane_extension() -> None:
     """Build symmetric quasi-isotropic laminate (T700 data), get ABD properties."""
     laminate = laminate_builder(
-        [0, 90, 45, -45], symmetry=True, copycenter=True, multiplicity=1, type="T700"
+        [0, 90, 45, -45], symmetry=True, copycenter=True, multiplicity=1, material_props=Christos
     )
     ABD = laminate.ABD_matrix
     h = float(laminate.h)

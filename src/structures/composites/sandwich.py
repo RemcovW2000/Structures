@@ -1,9 +1,9 @@
 import numpy as np
 from base_components.core import Core
 
-from structures.panel.data_utils import PanelLoads, PanelStrains
-from structures.panel.laminate import Laminate
-from structures.panel.Panel import Panel, calculate_ABD_matrix
+from structures.composites.data_utils import PanelLoads, PanelStrains
+from structures.composites.laminate import Laminate
+from structures.composites.Panel import Panel, calculate_ABD_matrix
 from structures.structural_entity import FailureMode, StructuralEntity
 
 

@@ -7,8 +7,8 @@ from typing import Optional
 
 import numpy as np
 
+from structures.composites.data.lamina_props import Christos
 from structures.FEM.mesh import Mesh
-from structures.panel.data.lamina_props import Christos
 
 # Simple node/element-based FEM solver for plate/shell elements -----------------
 
@@ -251,13 +251,13 @@ class FEMSolver:
 
 # Demo: 1-element plate with BC/loads API -------------------------------------
 if __name__ == "__main__":
+    from structures.composites.utils import laminate_builder
     from structures.FEM.plate_element import (
         CompositeElement,
         Node,
         Orientation,
         Vector,
     )
-    from structures.panel.utils import laminate_builder
 
     # Build symmetric quasi-isotropic laminate and compute ABD
     laminate = laminate_builder(

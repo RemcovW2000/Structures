@@ -1,9 +1,9 @@
 import numpy as np
 import pytest
 
-from structures.panel.data.lamina_props import Christos
-from structures.panel.data_utils import PanelLoads
-from structures.panel.utils import laminate_builder
+from structures.composites.data.lamina_props import Christos
+from structures.composites.data_utils import PanelLoads
+from structures.composites.utils import laminate_builder
 
 
 @pytest.mark.parametrize(

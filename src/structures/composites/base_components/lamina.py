@@ -4,8 +4,8 @@ from typing import Optional
 import numpy as np
 from numpy.typing import NDArray
 
-from structures.panel.data_utils import ElasticProperties, FailureProperties
-from structures.panel.math_utils import rotation_matrix
+from structures.composites.data_utils import ElasticProperties, FailureProperties
+from structures.composites.math_utils import rotation_matrix
 from structures.structural_entity import FailureMode, StructuralEntity, failure_analysis
 
 

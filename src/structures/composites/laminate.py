@@ -1,6 +1,6 @@
 import numpy as np
 
-from structures.panel.base_components.lamina import Lamina
+from structures.composites.base_components.lamina import Lamina
 
 from ..structural_entity import FailureMode, StructuralEntity, failure_analysis
 from .data_utils import PanelLoads, PanelStrains

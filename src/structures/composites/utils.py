@@ -1,9 +1,9 @@
 from typing import Optional
 
 from structures import Lamina
-from structures.panel.data.lamina_props import DEFAULT_MATERIAL
-from structures.panel.data_utils import MaterialProperties
-from structures.panel.laminate import Laminate
+from structures.composites.data.lamina_props import DEFAULT_MATERIAL
+from structures.composites.data_utils import MaterialProperties
+from structures.composites.laminate import Laminate
 
 
 def laminate_builder(
