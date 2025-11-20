@@ -38,12 +38,19 @@ class Sandwich(StructuralEntity, Panel):
         """
         Calculates the ABD matrix for the sandwich structure
         """
-        bottom_ABD = self.bottom_laminate.calculate_ABD_offset(offset=-self.core.h / 2)
-        top_ABD = self.top_laminate.calculate_ABD_offset(offset=self.core.h / 2)
+        bottom_ABD = self.bottom_laminate.calculate_ABD_offset(
+            offset=-(self.core.h + self.bottom_laminate.h) / 2
+        )
+        top_ABD = self.top_laminate.calculate_ABD_offset(
+            offset=(self.core.h + self.top_laminate.h) / 2
+        )
 
         totalABD = bottom_ABD + top_ABD
 
         self.ABD_matrix = totalABD
+        self.A_matrix = totalABD[0:3, 0:3]
+        self.B_matrix = totalABD[0:3, 3:6]
+        self.D_matrix = totalABD[3:6, 3:6]
         return totalABD
 
     def strains_from_loads(self) -> PanelStrains:
