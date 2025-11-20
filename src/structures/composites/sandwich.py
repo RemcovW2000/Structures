@@ -179,7 +179,6 @@ class Sandwich(StructuralEntity, Panel):
         self.bottom_laminate.strains = PanelStrains(
             np.array([Sx_bot, Sy_bot, Sxy_bot, Kx, Ky, Kxy])
         )
-        print(Sx_top, Sx_bot)
 
     def shear_load_wrinkling_Ncrit(self) -> float:
         t_face = self.bottom_laminate.h
