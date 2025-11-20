@@ -63,7 +63,7 @@ class Sandwich(StructuralEntity, Panel):
     def failure_analysis(self) -> list[FailureMode]:
         """Perform failure analysis on sandwich panel."""
         # calculate loads on facesheets:
-        self.assign_facesheet_loads()
+        self.assign_facesheet_strains()
 
         # check first ply failure for both facesheets:
         max_fi1 = self.bottom_laminate.fi
@@ -160,43 +160,25 @@ class Sandwich(StructuralEntity, Panel):
             FI = 0
         return FI
 
-    def assign_facesheet_loads(self) -> None:
+    def assign_facesheet_strains(self) -> None:
         """Sets loads for facesheets."""
-        # Normal loads are as follows:
-        Nx = self.loads.Nx
-        Ny = self.loads.Ny
+        strains = self.strains.array
+        Sx_top = strains[0] - (self.core.h / 2 + self.top_laminate.h / 2) * strains[3]
+        Sy_top = strains[1] - (self.core.h / 2 + self.top_laminate.h / 2) * strains[4]
+        Sxy_top = strains[2] - (self.core.h / 2 + self.top_laminate.h / 2) * strains[5]
 
-        # Divide normal loads between facesheets based on EA of facesheets
+        Sx_bot = strains[0] - (-self.core.h / 2 - self.bottom_laminate.h / 2) * strains[3]
+        Sy_bot = strains[1] - (-self.core.h / 2 - self.bottom_laminate.h / 2) * strains[4]
+        Sxy_bot = strains[2] - (-self.core.h / 2 - self.bottom_laminate.h / 2) * strains[5]
 
-        # Assign Nx:
-        Ext1 = self.bottom_laminate.Ex * self.bottom_laminate.h
-        Ext2 = self.top_laminate.Ex * self.top_laminate.h
+        Kx = strains[3]
+        Ky = strains[4]
+        Kxy = strains[5]
 
-        Nx1 = Nx * (Ext1 / (Ext1 + Ext2))
-        Nx2 = Nx * (Ext2 / (Ext1 + Ext2))
-
-        # Assign Ny:
-        Eyt1 = self.bottom_laminate.Ey * self.bottom_laminate.h
-        Eyt2 = self.top_laminate.Ey * self.top_laminate.h
-
-        Ny1 = Ny * (Eyt1 / (Eyt1 + Eyt2))
-        Ny2 = Ny * (Eyt2 / (Eyt1 + Eyt2))
-
-        # Divide shear loads between facesheets based on shear stifness GA of facesheets
-        Gt1 = self.bottom_laminate.Gxy * self.bottom_laminate.h
-        Gt2 = self.top_laminate.Gxy * self.top_laminate.h
-
-        Ns1 = self.loads.Nxy * (Gt1 / (Gt1 + Gt2))
-        Ns2 = self.loads.Nxy * (Gt2 / (Gt1 + Gt2))
-
-        # Mx = self.loads[3]
-        # My = self.loads[4]
-        # Ms = self.loads[5]
-
-        # TODO: add facesheet moments
-
-        self.bottom_laminate.Loads = PanelLoads(Nx=Nx1, Ny=Ny1, Nxy=Ns1)
-        self.top_laminate.Loads = PanelLoads(Nx=Nx2, Ny=Ny2, Nxy=Ns2)
+        self.top_laminate.strains = PanelStrains(np.array([Sx_top, Sy_top, Sxy_top, Kx, Ky, Kxy]))
+        self.bottom_laminate.strains = PanelStrains(
+            np.array([Sx_bot, Sy_bot, Sxy_bot, Kx, Ky, Kxy])
+        )
 
     def shear_load_wrinkling_Ncrit(self) -> float:
         t_face = self.bottom_laminate.h
