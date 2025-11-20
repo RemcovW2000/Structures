@@ -1,10 +1,10 @@
 import numpy as np
-from base_components.core import Core
 
+from structures.composites.base_components.core import Core
 from structures.composites.data_utils import PanelLoads, PanelStrains
 from structures.composites.laminate import Laminate
 from structures.composites.Panel import Panel, calculate_ABD_matrix
-from structures.structural_entity import FailureMode, StructuralEntity
+from structures.structural_entity import FailureMode, StructuralEntity, failure_analysis
 
 
 class Sandwich(StructuralEntity, Panel):
@@ -16,7 +16,7 @@ class Sandwich(StructuralEntity, Panel):
         loads: PanelLoads = None,
         strains: PanelStrains = None,
     ):
-        StructuralEntity.__init__()
+        StructuralEntity.__init__(self)
 
         self.bottom_laminate: Laminate = bottom_laminate  # bottom laminate
         self.top_laminate: Laminate = top_laminate  # top laminate
@@ -46,6 +46,13 @@ class Sandwich(StructuralEntity, Panel):
         self.ABD_matrix = totalABD
         return totalABD
 
+    def strains_from_loads(self) -> PanelStrains:
+        return PanelStrains(np.linalg.inv(self.ABD_matrix) @ self.loads.array)
+
+    def loads_from_strains(self) -> PanelLoads:
+        return PanelLoads(self.ABD_matrix @ self.strains.array)
+
+    @failure_analysis
     def failure_analysis(self) -> list[FailureMode]:
         """Perform failure analysis on sandwich panel."""
         # calculate loads on facesheets:
