@@ -31,7 +31,7 @@ class Sandwich(StructuralEntity, Panel):
 
     @property
     def child_objects(self) -> list[StructuralEntity]:
-        return [self.bottom_laminate, self.top_laminate, self.core]
+        return [self.bottom_laminate, self.top_laminate]
 
     @calculate_ABD_matrix
     def calculate_ABD_matrix(self) -> np.ndarray:
@@ -76,12 +76,12 @@ class Sandwich(StructuralEntity, Panel):
         l2_stresses, l2_directions = self.top_laminate.principal_stresses_and_directions()
 
         # using the directions we can find the material strength in that direction
-        wrinklingFI1 = self.wrinkling_analysis(l1_stresses, l1_directions, self.bottom_laminate)
-        wrinklingFI2 = self.wrinkling_analysis(l2_stresses, l2_directions, self.top_laminate)
+        # wrinklingFI1 = self.wrinkling_analysis(l1_stresses, l1_directions, self.bottom_laminate)
+        # wrinklingFI2 = self.wrinkling_analysis(l2_stresses, l2_directions, self.top_laminate)
 
         return [
-            ("wrinkling", wrinklingFI1),
-            ("wrinkling", wrinklingFI2),
+            # ("wrinkling", wrinklingFI1),
+            # ("wrinkling", wrinklingFI2),
             ("first_ply_failure", first_ply_failure),
         ]
 
@@ -142,7 +142,7 @@ class Sandwich(StructuralEntity, Panel):
 
             # use the E_theta to find the FI in the given direction
             G_core = self.core.Gxbarz(np.deg2rad(theta))
-            Ez = self.core.coreproperties["Ez"]
+            Ez = self.core.properties.Ez
             t_core = self.core.h
             t_face = laminate.h
 
@@ -193,8 +193,8 @@ class Sandwich(StructuralEntity, Panel):
         E_face = (12 * (1 - vxy * vyx) * D11f) / (t_face**3)
 
         G_45 = self.core.Gxbarz(np.deg2rad(45))
-        Ez = self.core.coreproperties["Ez"]
-        t_core = self.core.thickness
+        Ez = self.core.properties.Ez
+        t_core = self.core.h
 
         # Check which formula to use for wrinkling:
         symthick = self.SymThickWrinkling(Ez, t_face, E_face, G_45)
