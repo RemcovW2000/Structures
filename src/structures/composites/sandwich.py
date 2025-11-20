@@ -163,13 +163,13 @@ class Sandwich(StructuralEntity, Panel):
     def assign_facesheet_strains(self) -> None:
         """Sets loads for facesheets."""
         strains = self.strains.array
-        Sx_top = strains[0] - (self.core.h / 2 + self.top_laminate.h / 2) * strains[3]
-        Sy_top = strains[1] - (self.core.h / 2 + self.top_laminate.h / 2) * strains[4]
-        Sxy_top = strains[2] - (self.core.h / 2 + self.top_laminate.h / 2) * strains[5]
+        Sx_top = strains[0] + (self.core.h / 2 + self.top_laminate.h / 2) * strains[3]
+        Sy_top = strains[1] + (self.core.h / 2 + self.top_laminate.h / 2) * strains[4]
+        Sxy_top = strains[2] + (self.core.h / 2 + self.top_laminate.h / 2) * strains[5]
 
-        Sx_bot = strains[0] - (-self.core.h / 2 - self.bottom_laminate.h / 2) * strains[3]
-        Sy_bot = strains[1] - (-self.core.h / 2 - self.bottom_laminate.h / 2) * strains[4]
-        Sxy_bot = strains[2] - (-self.core.h / 2 - self.bottom_laminate.h / 2) * strains[5]
+        Sx_bot = strains[0] - (self.core.h / 2 + self.bottom_laminate.h / 2) * strains[3]
+        Sy_bot = strains[1] - (self.core.h / 2 + self.bottom_laminate.h / 2) * strains[4]
+        Sxy_bot = strains[2] - (-self.core.h / 2 + self.bottom_laminate.h / 2) * strains[5]
 
         Kx = strains[3]
         Ky = strains[4]
@@ -179,6 +179,7 @@ class Sandwich(StructuralEntity, Panel):
         self.bottom_laminate.strains = PanelStrains(
             np.array([Sx_bot, Sy_bot, Sxy_bot, Kx, Ky, Kxy])
         )
+        print(Sx_top, Sx_bot)
 
     def shear_load_wrinkling_Ncrit(self) -> float:
         t_face = self.bottom_laminate.h
