@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 from structures.composites.data.core_props import ROHACELL31A
+from structures.composites.data_utils import PanelLoads
 from structures.composites.laminate import Laminate
 from structures.composites.sandwich import Core, Sandwich
 from structures.composites.utils import laminate_builder
@@ -17,10 +18,9 @@ def standard_laminate() -> Laminate:
 @pytest.fixture
 def standard_sandwich(standard_laminate: Laminate) -> Sandwich:
     core = Core(2.0, properties=ROHACELL31A)
-
-    sandwich = Sandwich(
-        bottom_laminate=standard_laminate, top_laminate=standard_laminate, core=core
-    )
+    bot = copy.deepcopy(standard_laminate)
+    top = copy.deepcopy(standard_laminate)
+    sandwich = Sandwich(bottom_laminate=bot, top_laminate=top, core=core)
     return sandwich
 
 
@@ -67,3 +67,14 @@ def test_sandwich_ABD_matrix_no_core(sandwich_no_core: Sandwich) -> None:
     assert np.allclose(
         laminate.ABD_matrix, sandwich.ABD_matrix, atol=1e-8
     ), " ABD matrices are not equal"
+
+
+def test_sandwich_facesheet_strains(standard_sandwich: Sandwich) -> None:
+    sandwich = standard_sandwich
+
+    sandwich.loads = PanelLoads(Mx=100)
+    sandwich.assign_facesheet_strains()
+    Sx_top = sandwich.top_laminate.strains.epsilon_xo
+    Sx_bot = sandwich.bottom_laminate.strains.epsilon_xo
+    assert Sx_top > 0, "Top facesheet Sx strain should be positive under positive Mx"
+    assert Sx_bot < 0, "Bottom facesheet Sx strain should be negative under positive Mx"
