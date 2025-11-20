@@ -102,13 +102,13 @@ class Laminate(StructuralEntity, Panel):
 
         for lamina in self.laminas:
             max1 = max(
-                strains[0] - lamina.z0 * strains[3], strains[0] - lamina.z1 * strains[3], key=abs
+                strains[0] + lamina.z0 * strains[3], strains[0] + lamina.z1 * strains[3], key=abs
             )
             max2 = max(
-                strains[1] - lamina.z0 * strains[4], strains[1] - lamina.z1 * strains[4], key=abs
+                strains[1] + lamina.z0 * strains[4], strains[1] + lamina.z1 * strains[4], key=abs
             )
             max3 = max(
-                strains[2] - lamina.z0 * strains[5], strains[2] - lamina.z1 * strains[5], key=abs
+                strains[2] + lamina.z0 * strains[5], strains[2] + lamina.z1 * strains[5], key=abs
             )
             lamina.strains = np.array([max1, max2, max3])
 
