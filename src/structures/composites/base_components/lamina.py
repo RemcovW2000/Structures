@@ -24,7 +24,6 @@ class Lamina(StructuralEntity):
         z0, z1: Ply z-coordinates (assigned by laminate), if applicable.
         strains: Current strain vector in global coordinates (shape (3, 1) or (3,)).
         loads: Current stress vector in global coordinates (shape (3, 1) or (3,)).
-        failure_state: 0 = intact, 1 = inter-fiber failure, 2 = fiber failure.
     """
 
     def __init__(
