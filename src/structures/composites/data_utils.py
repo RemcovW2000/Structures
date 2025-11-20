@@ -120,29 +120,33 @@ class PanelLoads:
                  ▼  Nxy
     """
 
-    Nx: float
-    Ny: float
-    Nxy: float
-    Mx: float
-    My: float
-    Mxy: float
+    Nx: float = 0.0
+    Ny: float = 0.0
+    Nxy: float = 0.0
+    Mx: float = 0.0
+    My: float = 0.0
+    Mxy: float = 0.0
 
-    def __init__(self, *args: Any, **kwargs: Any):
+    def __init__(self, *args: any, **kwargs: any):
         fields = ["Nx", "Ny", "Nxy", "Mx", "My", "Mxy"]
+
+        # Case 1: PanelLoads([Nx, Ny, Nxy, Mx, My, Mxy])
         if len(args) == 1 and not kwargs:
-            arr = np.asarray(args[0], dtype=float).ravel()
+            arr = np.asarray(args[0], float).ravel()
             if arr.size != loads_strains_size:
                 raise ValueError("array must have 6 elements")
             for name, val in zip(fields, arr):
                 object.__setattr__(self, name, float(val))
-        elif not args:
-            missing = [f for f in fields if f not in kwargs]
-            if missing:
-                raise TypeError(f"missing keyword arguments: {missing}")
-            for name in fields:
-                object.__setattr__(self, name, float(kwargs[name]))
-        else:
-            raise TypeError("Use PanelLoads(array) or PanelLoads(Nx=..., Ny=..., ...)")
+            return
+
+        # Any positional args beyond the single array input = error
+        if args:
+            raise TypeError("Use PanelLoads(array) or keyword args only")
+
+        # Case 2: PanelLoads(Nx=..., Ny=..., ...) with defaults = 0.0
+        for name in fields:
+            val = kwargs.get(name, 0.0)  # default to zero
+            object.__setattr__(self, name, float(val))
 
     @property
     def array(self) -> np.ndarray:
@@ -157,29 +161,33 @@ class PanelStrains:
     Directions are the same as loads.
     """
 
-    epsilon_xo: float
-    epsilon_yo: float
-    gamma_xyo: float
-    kappa_x: float
-    kappa_y: float
-    kappa_xy: float
+    epsilon_xo: float = 0.0
+    epsilon_yo: float = 0.0
+    gamma_xyo: float = 0.0
+    kappa_x: float = 0.0
+    kappa_y: float = 0.0
+    kappa_xy: float = 0.0
 
     def __init__(self, *args: Any, **kwargs: Any):
         fields = ["epsilon_xo", "epsilon_yo", "gamma_xyo", "kappa_x", "kappa_y", "kappa_xy"]
+
+        # Case 1: PanelStrains([εx, εy, γxy, κx, κy, κxy])
         if len(args) == 1 and not kwargs:
-            arr = np.asarray(args[0], dtype=float).ravel()
+            arr = np.asarray(args[0], float).ravel()
             if arr.size != loads_strains_size:
                 raise ValueError("array must have 6 elements")
             for name, val in zip(fields, arr):
                 object.__setattr__(self, name, float(val))
-        elif not args:
-            missing = [f for f in fields if f not in kwargs]
-            if missing:
-                raise TypeError(f"missing keyword arguments: {missing}")
-            for name in fields:
-                object.__setattr__(self, name, float(kwargs[name]))
-        else:
-            raise TypeError("Use PanelStrains(array) or PanelStrains(epsilon_xo=..., ...)")
+            return
+
+        # Any positional args beyond the array = error
+        if args:
+            raise TypeError("Use PanelStrains(array) or keyword args only")
+
+        # Case 2: keyword args with defaults = 0.0
+        for name in fields:
+            val = kwargs.get(name, 0.0)
+            object.__setattr__(self, name, float(val))
 
     @property
     def array(self) -> np.ndarray:
