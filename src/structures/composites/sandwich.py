@@ -76,6 +76,8 @@ class Sandwich(StructuralEntity, Panel):
         wrinkling_fi_bottom = 0.0
         wrinkling_fi_top = 0.0
         crimping_fi = 0.0
+        dimpling_fi_top = 0.0
+        dimpling_fi_bottom = 0.0
         for theta in range(0, 180, WRINKLING_ANGLE_STEP):
             w_fi_bot = self.wrinkling_analysis(self.bottom_laminate, theta)
             w_fi_top = self.wrinkling_analysis(self.top_laminate, theta)
@@ -86,11 +88,19 @@ class Sandwich(StructuralEntity, Panel):
                 wrinkling_fi_top = w_fi_top
 
             crimping_fi = self.crimping_analysis(np.deg2rad(theta))
+            dimpling_fi_top = self.dimpling_analysis(
+                laminate=self.top_laminate, theta=np.deg2rad(theta)
+            )
+            dimpling_fi_bottom = self.dimpling_analysis(
+                laminate=self.bottom_laminate, theta=np.deg2rad(theta)
+            )
 
         return [
-            ("wrinkling", wrinkling_fi_bottom),
-            ("wrinkling", wrinkling_fi_top),
+            ("wrinkling_bottom", wrinkling_fi_bottom),
+            ("wrinkling_top", wrinkling_fi_top),
             ("crimping", crimping_fi),
+            ("dimpling_top", dimpling_fi_top),
+            ("dimpling_bottom", dimpling_fi_bottom),
             ("first_ply_failure", first_ply_failure),
         ]
 
@@ -228,7 +238,7 @@ class Sandwich(StructuralEntity, Panel):
 
         Nx_dim = (
             2
-            * ((E_rotated, laminate.h**3) / (1 - vxy_rotated * vyx_rotated))
+            * ((E_rotated * laminate.h**3) / (1 - vxy_rotated * vyx_rotated))
             / self.core.properties.cell_diameter**2
         )
         fi = float(abs(Nx_rotated / Nx_dim))

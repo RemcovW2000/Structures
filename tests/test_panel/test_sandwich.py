@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 from structures.composites.data.core_props import ROHACELL31A
-from structures.composites.data_utils import PanelLoads, PanelStrains
+from structures.composites.data_utils import CoreProperties, PanelLoads, PanelStrains
 from structures.composites.laminate import Laminate
 from structures.composites.sandwich import Core, Sandwich
 from structures.composites.utils import laminate_builder
@@ -121,3 +121,54 @@ def test_fi_vs_strain_bending(standard_sandwich: Sandwich, standard_laminate: La
     assert math.isclose(
         sandwich.fi, laminate.fi, abs_tol=1e-9
     ), "Failure indices do not match between sandwich and equivalent laminate at same bending strain"
+
+
+@pytest.mark.parametrize(
+    "load, expected_failure",
+    [
+        (1e6, False),
+        (-1e6, True),
+    ],
+)
+def test_wrinkling_failure(
+    standard_sandwich: Sandwich, load: float, expected_failure: bool
+) -> None:
+    sandwich = standard_sandwich
+    sandwich.loads = PanelLoads(Nx=load)  # High compressive load to trigger wrinkling
+    sandwich.failure_analysis()
+
+    wrinkling_fi = sandwich.failure_indicators["wrinkling_top"]
+    failure = wrinkling_fi > 1
+    assert failure == expected_failure, "Wrinkling failure not detected under high compressive load"
+
+
+def test_wrinkling_for_thin_facesheets() -> None:
+    core = Core(10.0, properties=ROHACELL31A)
+    bot = laminate_builder([0], True, True, 1)
+    top = laminate_builder([0], True, True, 1)
+    sandwich = Sandwich(bottom_laminate=bot, top_laminate=top, core=core)
+
+    sandwich.loads = PanelLoads(Nx=-100)  # Compressive load to trigger wrinkling
+    sandwich.failure_analysis()
+    wrinkling_fi = sandwich.failure_indicators["wrinkling_top"]
+    print(sandwich.failure_indicators)
+    assert (
+        wrinkling_fi == sandwich.fi
+    ), "Wrinkling failure not detected for thin facesheets under compressive load"
+
+
+def test_dimpling_large_cells() -> None:
+    core_props = CoreProperties(
+        Ez=32, Sxz=0.4, Gxz=13, Syz=0.4, Gyz=13, Xc=0.4, rho=32 / 1000, cell_diameter=10
+    )
+    core = Core(5.0, properties=core_props)
+    bot = laminate_builder([0], True, True, 1)
+    top = laminate_builder([0], True, True, 1)
+    sandwich = Sandwich(bottom_laminate=bot, top_laminate=top, core=core)
+
+    sandwich.loads = PanelLoads(Nx=-50)  # Compressive load to trigger dimpling
+    sandwich.failure_analysis()
+    dimpling_fi = sandwich.failure_indicators["dimpling_top"]
+    assert (
+        dimpling_fi < 1
+    ), "Dimpling incorrectly detected for large core cell size under compressive load"
