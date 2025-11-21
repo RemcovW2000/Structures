@@ -75,6 +75,7 @@ class Sandwich(StructuralEntity, Panel):
 
         wrinkling_fi_bottom = 0.0
         wrinkling_fi_top = 0.0
+        crimping_fi = 0.0
         for theta in range(0, 180, WRINKLING_ANGLE_STEP):
             w_fi_bot = self.wrinkling_analysis(self.bottom_laminate, theta)
             w_fi_top = self.wrinkling_analysis(self.top_laminate, theta)
@@ -84,9 +85,12 @@ class Sandwich(StructuralEntity, Panel):
             if w_fi_top > wrinkling_fi_top:
                 wrinkling_fi_top = w_fi_top
 
+            crimping_fi = self.crimping_analysis(np.deg2rad(theta))
+
         return [
             ("wrinkling", wrinkling_fi_bottom),
             ("wrinkling", wrinkling_fi_top),
+            ("crimping", crimping_fi),
             ("first_ply_failure", first_ply_failure),
         ]
 
@@ -195,3 +199,15 @@ class Sandwich(StructuralEntity, Panel):
         """Calculate crit load intensity for asymmetric wrinkling thin laminates."""
         Ns_w = 0.33 * t_face ** (3 / 2) * np.sqrt(Ez * E_f / t_core)
         return Ns_w
+
+    def crimping_analysis(self, theta: float) -> float:
+        loads_vector = np.array([self.loads.Nx, self.loads.Ny, self.loads.Nxy], dtype=float)
+        loads_vector_rotated = rotation_matrix(np.deg2rad(theta)) @ loads_vector
+        Nx_rotated = loads_vector_rotated[0]
+
+        if Nx_rotated > 0:
+            return 0.0
+
+        Ncrimping = self.core.h * self.core.Gxbarz(theta)
+        fi = float(abs(Nx_rotated / Ncrimping))
+        return fi
