@@ -5,12 +5,13 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "structures"
 dynamic = ["version"]
-description = "Finite Element Analysis library for structural engineering"
+description = "Applies classical laminate theory and other structural analysis methods for the analysis oof composite structures."
+authors = [
+    {name = "Remco van Woerkom", email = "RemcovW2000@gmail.com"}]
 readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
-    "numpy",
-    "matplotlib",
+    "numpy"
 ]
 
 [tool.setuptools_scm]
@@ -89,7 +90,7 @@ testpaths = [
 
 [tool.coverage.run]
 branch = true
-source = ["structures"]
+source = ["structures/composites"]
 
 [tool.coverage.report]
 show_missing = true
