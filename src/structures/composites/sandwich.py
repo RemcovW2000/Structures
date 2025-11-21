@@ -71,18 +71,20 @@ class Sandwich(StructuralEntity, Panel):
         max_fi2 = self.top_laminate.fi
         first_ply_failure = max(max_fi1, max_fi2)
 
-        # check for wrinkling in both facesheets:
-        l1_stresses, l1_directions = self.bottom_laminate.principal_stresses_and_directions()
+        wrinkling_fi_bottom = 0.0
+        wrinkling_fi_top = 0.0
+        for theta in range(0, 180, 15):
+            w_fi_bot = self.wrinkling_analysis(self.bottom_laminate, theta)
+            w_fi_top = self.wrinkling_analysis(self.top_laminate, theta)
 
-        l2_stresses, l2_directions = self.top_laminate.principal_stresses_and_directions()
-
-        # using the directions we can find the material strength in that direction
-        wrinklingFI1 = self.wrinkling_analysis(l1_stresses, l1_directions, self.bottom_laminate)
-        wrinklingFI2 = self.wrinkling_analysis(l2_stresses, l2_directions, self.top_laminate)
+            if w_fi_bot > wrinkling_fi_bottom:
+                wrinkling_fi_bottom = w_fi_bot
+            if w_fi_top > wrinkling_fi_top:
+                wrinkling_fi_top = w_fi_top
 
         return [
-            ("wrinkling", wrinklingFI1),
-            ("wrinkling", wrinklingFI2),
+            ("wrinkling", wrinkling_fi_bottom),
+            ("wrinkling", wrinkling_fi_top),
             ("first_ply_failure", first_ply_failure),
         ]
 
@@ -133,8 +135,8 @@ class Sandwich(StructuralEntity, Panel):
         Finds laminates with compressive loads.
         """
         # TODO: take into account assymetric laminates
-        loads_vector = np.ndarray(
-            laminate.loads.array.Nx, laminate.loads.array.Ny, laminate.loads.array.Nxy
+        loads_vector = np.array(
+            [laminate.loads.Nx, laminate.loads.Ny, laminate.loads.Nxy], dtype=float
         )
         loads_vector_rotated = rotation_matrix(theta) @ loads_vector
         Nx_rotated = loads_vector_rotated[0]
@@ -149,16 +151,24 @@ class Sandwich(StructuralEntity, Panel):
         t_core = self.core.h
         t_face = laminate.h
 
-        symthick = abs(self.SymThickWrinkling(Ez, t_face, E_rotated, G_core))
-        asymthin = abs(self.SymThinWrinkling(Ez, t_core, t_face, E_rotated, G_core))
-
-        if symthick < asymthin:
-            Nwrinkle = symthick
+        # symmetric:
+        z_c_sym = 0.91 * t_face * (Ez * E_rotated / (G_core**2)) ** (1 / 3)
+        if t_core >= 2 * z_c_sym:
+            sym_Nwrinkle = self.SymThickWrinkling(Ez, t_face, E_rotated, G_core)
         else:
-            Nwrinkle = asymthin
+            sym_Nwrinkle = self.SymThinWrinkling(Ez, t_core, t_face, E_rotated, G_core)
 
-        FI = abs(Nx_rotated / Nwrinkle)
-        return FI
+        # antisymmetric:
+        z_c_antisym = 1.5 * t_face * (Ez * E_rotated / (G_core**2)) ** (1 / 3)
+        if t_core >= 2 * z_c_antisym:
+            asym_Nwrinkle = self.AsymThickWrinkling(Ez, t_core, t_face, E_rotated)
+        else:
+            asym_Nwrinkle = self.AsymThinWrinkling(Ez, t_core, t_face, E_rotated, G_core)
+
+        Nwrinkle = min(sym_Nwrinkle, asym_Nwrinkle)
+
+        fi = float(abs(Nx_rotated / Nwrinkle))
+        return fi
 
     def SymThickWrinkling(self, Ez: float, t_face: float, E_f: float, G_45: float) -> float:
         """Calculate crit load intensity for symmetric wrinkling thick laminates."""
