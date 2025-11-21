@@ -58,7 +58,7 @@ class CoreProperties:
         Gxz: shear modulus xz direction (transverse out of plane)
         Syz: shear strength yz direction (transverse out of plane)
         Gyz: shear modulus yz direction (transverse out of plane)
-        Xc: compressive strength???????????????????????????? #TODO: figure out
+        Xc: compressive strength
         rho: Density (mass per unit volume, e.g., g/mm³).
     """
 
@@ -69,6 +69,7 @@ class CoreProperties:
     Gyz: float
     Xc: float
     rho: float
+    cell_diameter: float
 
 
 @dataclass(frozen=True)

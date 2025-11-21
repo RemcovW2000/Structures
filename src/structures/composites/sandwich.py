@@ -211,3 +211,25 @@ class Sandwich(StructuralEntity, Panel):
         Ncrimping = self.core.h * self.core.Gxbarz(theta)
         fi = float(abs(Nx_rotated / Ncrimping))
         return fi
+
+    def dimpling_analysis(self, laminate: Laminate, theta: float) -> float:
+        """Perform dimpling analysis."""
+        loads_vector = np.array([self.loads.Nx, self.loads.Ny, self.loads.Nxy], dtype=float)
+        loads_vector_rotated = rotation_matrix(np.deg2rad(theta)) @ loads_vector
+        Nx_rotated = loads_vector_rotated[0]
+
+        if Nx_rotated > 0:
+            return 0.0
+
+        rotated_properties = laminate.calculate_equivalent_properties_rotated(theta)
+        E_rotated = rotated_properties.E1
+        vxy_rotated = rotated_properties.v12
+        vyx_rotated = vxy_rotated * (rotated_properties.E2 / E_rotated)
+
+        Nx_dim = (
+            2
+            * ((E_rotated, laminate.h**3) / (1 - vxy_rotated * vyx_rotated))
+            / self.core.properties.cell_diameter**2
+        )
+        fi = float(abs(Nx_rotated / Nx_dim))
+        return fi
