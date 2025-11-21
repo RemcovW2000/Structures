@@ -3,7 +3,7 @@ import numpy as np
 from structures.composites.base_components.lamina import Lamina
 
 from ..structural_entity import FailureMode, StructuralEntity, failure_analysis
-from .data_utils import PanelLoads, PanelStrains
+from .data_utils import ElasticProperties, PanelLoads, PanelStrains
 from .math_utils import rotation_matrix
 from .Panel import Panel, calculate_ABD_matrix
 
@@ -188,6 +188,20 @@ class Laminate(StructuralEntity, Panel):
 
         ABD_transformed = T_ext @ self.ABD_matrix @ T_ext.T
         return ABD_transformed
+
+    def calculate_equivalent_properties_rotated(self, theta: float) -> ElasticProperties:
+        """Calculate equivalent engineering properties of the laminate at angle theta."""
+        rotated_ABD = self.rotated_ABD(theta)
+        A_matrix = rotated_ABD[0:3, 0:3]
+
+        A_bar = A_matrix / self.h
+        S = np.linalg.inv(A_bar)
+
+        Ex = 1.0 / float(S[0, 0])
+        Ey = 1.0 / float(S[1, 1])
+        Gxy = 1.0 / float(S[2, 2])
+        vxy = -float(S[0, 1]) / float(S[0, 0])
+        return ElasticProperties(Ex, Ey, Gxy, vxy)
 
     # Function to transform the ABD matrix
     def principal_stresses_and_directions(self) -> tuple[np.ndarray, np.ndarray]:
