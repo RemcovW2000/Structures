@@ -140,7 +140,7 @@ class Sandwich(StructuralEntity, Panel):
         loads_vector = np.array(
             [laminate.loads.Nx, laminate.loads.Ny, laminate.loads.Nxy], dtype=float
         )
-        loads_vector_rotated = rotation_matrix(theta) @ loads_vector
+        loads_vector_rotated = rotation_matrix(np.deg2rad(theta)) @ loads_vector
         Nx_rotated = loads_vector_rotated[0]
 
         if Nx_rotated > 0:
