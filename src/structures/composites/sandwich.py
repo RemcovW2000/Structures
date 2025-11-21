@@ -3,6 +3,7 @@ import numpy as np
 from structures.composites.base_components.core import Core
 from structures.composites.data_utils import PanelLoads, PanelStrains
 from structures.composites.laminate import Laminate
+from structures.composites.math_utils import rotation_matrix
 from structures.composites.Panel import Panel, calculate_ABD_matrix
 from structures.structural_entity import FailureMode, StructuralEntity, failure_analysis
 
@@ -76,12 +77,12 @@ class Sandwich(StructuralEntity, Panel):
         l2_stresses, l2_directions = self.top_laminate.principal_stresses_and_directions()
 
         # using the directions we can find the material strength in that direction
-        # wrinklingFI1 = self.wrinkling_analysis(l1_stresses, l1_directions, self.bottom_laminate)
-        # wrinklingFI2 = self.wrinkling_analysis(l2_stresses, l2_directions, self.top_laminate)
+        wrinklingFI1 = self.wrinkling_analysis(l1_stresses, l1_directions, self.bottom_laminate)
+        wrinklingFI2 = self.wrinkling_analysis(l2_stresses, l2_directions, self.top_laminate)
 
         return [
-            # ("wrinkling", wrinklingFI1),
-            # ("wrinkling", wrinklingFI2),
+            ("wrinkling", wrinklingFI1),
+            ("wrinkling", wrinklingFI2),
             ("first_ply_failure", first_ply_failure),
         ]
 
@@ -95,73 +96,8 @@ class Sandwich(StructuralEntity, Panel):
             ]
         )
 
-    def buckling_scaling_factor(self, Ncrit: float) -> float:
-        """
-        Returns scaling factor by which to multiply panel buckling load.
-
-        Compensates for core transverse shearing.
-        """
-        # TODO: take into account directionality of buckling
-        Nxcrit = Ncrit / (1 + Ncrit / (self.core.h * self.core.properties.Gxz))
-        return Nxcrit
-
-    def wrinkling_analysis(
-        self, laminate_stresses: np.ndarray, laminate_directions: np.ndarray, laminate: Laminate
-    ) -> float:
-        """
-        Perform wrinkling analysis.
-
-        Laminates have Loads assigned.
-        """
-        # TODO: take into account assymetric laminates
-        negative_values = laminate_stresses[laminate_stresses < 0]
-        if len(negative_values) > 0:
-            # Find the index of the negative value with the largest absolute value
-            max_negative_index = np.where(
-                laminate_stresses == negative_values[np.argmax(np.abs(negative_values))]
-            )[0][0]
-            direction = laminate_directions[max_negative_index]
-
-            # now calculate E at the given angle:
-            vx, vy = direction[0], direction[1]
-            theta = np.arctan2(vy, vx)  # Calculate the angle theta in radians
-
-            cos_theta = np.cos(theta)
-            sin_theta = np.sin(theta)
-
-            # Calculate 1/E_theta using the formula
-            E_theta_inv = (
-                (cos_theta**4) / laminate.Ex
-                + (sin_theta**4) / laminate.Ey
-                + (2 * sin_theta**2 * cos_theta**2) / laminate.Gxy
-                + (2 * laminate.vxy * cos_theta**2 * sin_theta**2) / laminate.Ex
-            )
-
-            # Inverse to get E_theta
-            E_theta = 1 / E_theta_inv
-
-            # use the E_theta to find the FI in the given direction
-            G_core = self.core.Gxbarz(np.deg2rad(theta))
-            Ez = self.core.properties.Ez
-            t_core = self.core.h
-            t_face = laminate.h
-
-            symthick = abs(self.SymThickWrinkling(Ez, t_face, E_theta, G_core))
-
-            asymthin = abs(self.SymThinWrinkling(Ez, t_core, t_face, E_theta, G_core))
-            if symthick < asymthin:
-                Nwrinkle = symthick
-            else:
-                Nwrinkle = asymthin
-
-            FI = abs(laminate_stresses[max_negative_index] / Nwrinkle)
-
-        else:
-            FI = 0
-        return FI
-
     def assign_facesheet_strains(self) -> None:
-        """Sets loads for facesheets."""
+        """Sets strains for facesheets based on sandwich panel strains."""
         strains = self.strains.array
         Sx_top = strains[0] + (self.core.h / 2 + self.top_laminate.h / 2) * strains[3]
         Sy_top = strains[1] + (self.core.h / 2 + self.top_laminate.h / 2) * strains[4]
@@ -180,33 +116,49 @@ class Sandwich(StructuralEntity, Panel):
             np.array([Sx_bot, Sy_bot, Sxy_bot, Kx, Ky, Kxy])
         )
 
-    def shear_load_wrinkling_Ncrit(self) -> float:
-        t_face = self.bottom_laminate.h
-        ABD_matrix45 = self.bottom_laminate.rotated_ABD(np.deg2rad(45))
+    def buckling_scaling_factor(self, Ncrit: float) -> float:
+        """
+        Returns scaling factor by which to multiply panel buckling load.
 
-        # In this case we check for shear buckling:
-        vxy = ABD_matrix45[0, 1] / ABD_matrix45[1, 1]
-        vyx = ABD_matrix45[0, 1] / ABD_matrix45[0, 0]
-        D11f = ABD_matrix45[3, 3]
+        Compensates for core transverse shearing.
+        """
+        # TODO: take into account directionality of buckling
+        Nxcrit = Ncrit / (1 + Ncrit / (self.core.h * self.core.properties.Gxz))
+        return Nxcrit
 
-        # And we calculate the effective E modulus of the face sheet:
-        E_face = (12 * (1 - vxy * vyx) * D11f) / (t_face**3)
+    def wrinkling_analysis(self, laminate: Laminate, theta: float) -> float:
+        """
+        Perform wrinkling analysis at specific angle.
 
-        G_45 = self.core.Gxbarz(np.deg2rad(45))
+        Finds laminates with compressive loads.
+        """
+        # TODO: take into account assymetric laminates
+        loads_vector = np.ndarray(
+            laminate.loads.array.Nx, laminate.loads.array.Ny, laminate.loads.array.Nxy
+        )
+        loads_vector_rotated = rotation_matrix(theta) @ loads_vector
+        Nx_rotated = loads_vector_rotated[0]
+
+        if Nx_rotated > 0:
+            return 0.0
+
+        E_rotated = laminate.calculate_equivalent_properties_rotated(theta).E1
+
+        G_core = self.core.Gxbarz(np.deg2rad(theta))
         Ez = self.core.properties.Ez
         t_core = self.core.h
+        t_face = laminate.h
 
-        # Check which formula to use for wrinkling:
-        symthick = self.SymThickWrinkling(Ez, t_face, E_face, G_45)
-
-        asymthin = self.SymThinWrinkling(Ez, t_core, t_face, E_face, G_45)
+        symthick = abs(self.SymThickWrinkling(Ez, t_face, E_rotated, G_core))
+        asymthin = abs(self.SymThinWrinkling(Ez, t_core, t_face, E_rotated, G_core))
 
         if symthick < asymthin:
             Nwrinkle = symthick
-            print("SymThickWrinkling")
         else:
             Nwrinkle = asymthin
-        return Nwrinkle
+
+        FI = abs(Nx_rotated / Nwrinkle)
+        return FI
 
     def SymThickWrinkling(self, Ez: float, t_face: float, E_f: float, G_45: float) -> float:
         """Calculate crit load intensity for symmetric wrinkling thick laminates."""
