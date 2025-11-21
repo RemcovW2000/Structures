@@ -7,6 +7,8 @@ from structures.composites.math_utils import rotation_matrix
 from structures.composites.Panel import Panel, calculate_ABD_matrix
 from structures.structural_entity import FailureMode, StructuralEntity, failure_analysis
 
+WRINKLING_ANGLE_STEP = 5  # degrees
+
 
 class Sandwich(StructuralEntity, Panel):
     def __init__(
@@ -73,7 +75,7 @@ class Sandwich(StructuralEntity, Panel):
 
         wrinkling_fi_bottom = 0.0
         wrinkling_fi_top = 0.0
-        for theta in range(0, 180, 15):
+        for theta in range(0, 180, WRINKLING_ANGLE_STEP):
             w_fi_bot = self.wrinkling_analysis(self.bottom_laminate, theta)
             w_fi_top = self.wrinkling_analysis(self.top_laminate, theta)
 
